@@ -1,0 +1,48 @@
+# Root level gitignore for the video call project
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+logs/
+
+# Environment files
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Temporary folders
+tmp/
+temp/
+
+# Archive files
+*.zip
+*.tar.gz
+*.rar
+
+# Project specific
+dist/
+build/
+
+# Node modules (handled by frontend/.gitignore but added here for safety)
+node_modules/
+
+# Python cache (handled by backend/.gitignore but added here for safety)
+__pycache__/
+*.pyc 
