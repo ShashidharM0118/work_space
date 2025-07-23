@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { useAuth } from '../context/AuthContext';
-import { getRecentRooms, getOwnedOffices, getMemberOffices, subscribeToUserRooms, createOffice, sendEmailInvitation, getUserInvitations, getSentInvitations, cancelInvitation, respondToOfficeInvitation, type RoomMembership, type UserRooms } from '../lib/firebase';
+import { getRecentRooms, getOwnedOffices, getMemberOffices, subscribeToUserRooms, createOffice, sendEmailInvitation, getUserInvitations, getSentInvitations, cancelInvitation, respondToOfficeInvitation, getOfficeActivityStats, type RoomMembership, type UserRooms, type ActivityStats } from '../lib/firebase';
 import { v4 as uuidv4 } from 'uuid';
 
 interface Office {
@@ -409,6 +409,8 @@ export default function Home() {
   const [sentInvitations, setSentInvitations] = useState<any[]>([]);
   const [showSentInvitations, setShowSentInvitations] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const [activityStats, setActivityStats] = useState<ActivityStats | null>(null);
+  const [loadingActivityStats, setLoadingActivityStats] = useState(false);
 
   // Invitation state
   const [inviteEmail, setInviteEmail] = useState('');
@@ -556,6 +558,36 @@ export default function Home() {
       setAuthError('Failed to join office. Please check the code and try again.');
     }
   };
+
+  // Load activity statistics for owned offices
+  const loadActivityStats = async () => {
+    if (!user || ownedOffices.length === 0) return;
+
+    setLoadingActivityStats(true);
+    try {
+      // Get stats for the first owned office (can be enhanced to combine multiple offices)
+      const firstOfficeId = ownedOffices[0];
+      const stats = await getOfficeActivityStats(firstOfficeId);
+      setActivityStats(stats);
+    } catch (error) {
+      console.error('Error loading activity stats:', error);
+      setActivityStats({
+        totalEmployees: 0,
+        activeNow: 0,
+        avgWeeklyHours: 0,
+        topPerformers: []
+      });
+    } finally {
+      setLoadingActivityStats(false);
+    }
+  };
+
+  // Load activity stats when profile is opened and user has offices
+  useEffect(() => {
+    if (showProfile && user && ownedOffices.length > 0) {
+      loadActivityStats();
+    }
+  }, [showProfile, user, ownedOffices]);
 
   const handleOfficeClick = (officeId: string) => {
     setSelectedOffice(officeId);
@@ -2651,7 +2683,7 @@ export default function Home() {
                             color: '#EF4444',
                             marginBottom: '4px'
                           }}>
-                            12
+                            {loadingActivityStats ? '...' : (activityStats?.totalEmployees || 0)}
                           </div>
                           <div style={{
                             fontSize: '12px',
@@ -2675,7 +2707,7 @@ export default function Home() {
                             color: '#22C55E',
                             marginBottom: '4px'
                           }}>
-                            8
+                            {loadingActivityStats ? '...' : (activityStats?.activeNow || 0)}
                           </div>
                           <div style={{
                             fontSize: '12px',
@@ -2699,7 +2731,7 @@ export default function Home() {
                             color: '#A855F7',
                             marginBottom: '4px'
                           }}>
-                            47.2h
+                            {loadingActivityStats ? '...' : `${activityStats?.avgWeeklyHours || 0}h`}
                           </div>
                           <div style={{
                             fontSize: '12px',
@@ -2730,12 +2762,25 @@ export default function Home() {
                           flexDirection: 'column',
                           gap: '8px'
                         }}>
-                          {[
-                            { name: 'Sarah Chen', hours: '52.3h', department: 'Frontend', avatar: '👩‍💻' },
-                            { name: 'Mike Johnson', hours: '48.7h', department: 'Backend', avatar: '👨‍💼' },
-                            { name: 'Emily Davis', hours: '45.1h', department: 'Design', avatar: '👩‍🎨' },
-                            { name: 'Alex Kumar', hours: '43.8h', department: 'DevOps', avatar: '👨‍🔧' }
-                          ].map((employee, index) => (
+                          {loadingActivityStats ? (
+                            <div style={{
+                              textAlign: 'center',
+                              padding: '20px',
+                              color: 'rgba(255,255,255,0.7)'
+                            }}>
+                              <div style={{
+                                width: '24px',
+                                height: '24px',
+                                border: '2px solid rgba(255,255,255,0.2)',
+                                borderTop: '2px solid #0F9D58',
+                                borderRadius: '50%',
+                                animation: 'spin 1s linear infinite',
+                                margin: '0 auto 8px'
+                              }} />
+                              Loading employee data...
+                            </div>
+                          ) : activityStats?.topPerformers && activityStats.topPerformers.length > 0 ? 
+                            activityStats.topPerformers.map((employee, index) => (
                             <div
                               key={employee.name}
                               style={{
@@ -2795,14 +2840,22 @@ export default function Home() {
                                   fontWeight: '600',
                                   color: index === 0 ? '#22C55E' : '#A855F7'
                                 }}>
-                                  {employee.hours}
+                                  {employee.weeklyHours}h
                                 </div>
                                 {index === 0 && (
                                   <span style={{ fontSize: '16px' }}>🏆</span>
                                 )}
                               </div>
                             </div>
-                          ))}
+                          )) : (
+                            <div style={{
+                              textAlign: 'center',
+                              padding: '20px',
+                              color: 'rgba(255,255,255,0.7)'
+                            }}>
+                              No employee activity data available
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>

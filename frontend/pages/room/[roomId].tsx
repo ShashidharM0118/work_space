@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import { useAuth } from '../../context/AuthContext';
 import SimplePeer from 'simple-peer';
 import { v4 as uuidv4 } from 'uuid';
+import { startActivityTracking, stopActivityTracking, updateActivityHeartbeat, getUserRoleInOffice } from '../../lib/firebase';
 
 interface PeerRef {
   id: string;
@@ -69,6 +70,8 @@ export default function Room() {
   const [officeJoinedDate, setOfficeJoinedDate] = useState<string>('');
   const [totalWorkingHours, setTotalWorkingHours] = useState(0);
   const [employeeStats, setEmployeeStats] = useState<any[]>([]);
+  const [activitySessionId, setActivitySessionId] = useState<string | null>(null);
+  const [sessionDuration, setSessionDuration] = useState(0);
 
   // Whiteboard helpers
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -153,34 +156,35 @@ export default function Room() {
   // Check if user is owner and get office ID
   useEffect(() => {
     if (user && roomId) {
-      // Get office ID from URL params or localStorage
-      const urlParams = new URLSearchParams(window.location.search);
-      const officeIdFromUrl = urlParams.get('officeId');
-      const officeIdFromStorage = localStorage.getItem('currentOfficeId');
-      const currentOfficeId = officeIdFromUrl || officeIdFromStorage || 'default';
-      
-      setOfficeId(currentOfficeId);
-      
-      // Check if user is owner (could be stored in localStorage or passed from office page)
-      let ownerStatus = localStorage.getItem(`office_${currentOfficeId}_owner`) === user.uid;
-      
-      // Fallback: Check if this is the first user in the room (temporary for testing)
-      if (!ownerStatus && participants.length === 0) {
-        ownerStatus = true;
-        localStorage.setItem(`office_${currentOfficeId}_owner`, user.uid);
-      }
-      
-      setIsOwner(ownerStatus);
-      
-      // Debug logging
-      console.log('🔍 Owner Detection Debug:', {
-        userId: user.uid,
-        currentOfficeId,
-        storedOwner: localStorage.getItem(`office_${currentOfficeId}_owner`),
-        isOwner: ownerStatus,
-        officeIdFromUrl,
-        officeIdFromStorage
-      });
+      const checkUserRole = async () => {
+        // Get office ID from URL params or localStorage
+        const urlParams = new URLSearchParams(window.location.search);
+        const officeIdFromUrl = urlParams.get('officeId');
+        const officeIdFromStorage = localStorage.getItem('currentOfficeId');
+        const currentOfficeId = officeIdFromUrl || officeIdFromStorage || 'default';
+        
+        setOfficeId(currentOfficeId);
+        
+        // Get user role from Firebase instead of localStorage
+        try {
+          const userRole = await getUserRoleInOffice(user.uid, currentOfficeId);
+          const isOwnerStatus = userRole === 'owner';
+          setIsOwner(isOwnerStatus);
+          
+          console.log('🔍 Role Detection from Firebase:', {
+            userId: user.uid,
+            currentOfficeId,
+            userRole,
+            isOwner: isOwnerStatus
+          });
+        } catch (error) {
+          console.error('Error determining user role:', error);
+          // Fallback to member role if there's an error
+          setIsOwner(false);
+        }
+      };
+
+      checkUserRole();
     }
   }, [user, roomId]);
 
@@ -497,6 +501,20 @@ export default function Room() {
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [router, officeId]);
 
+  // Activity heartbeat - update activity status every minute
+  useEffect(() => {
+    if (!activitySessionId) return;
+
+    const heartbeatInterval = setInterval(() => {
+      updateActivityHeartbeat(activitySessionId);
+      setSessionDuration(prev => prev + 1);
+    }, 60000); // Every minute
+
+    return () => {
+      clearInterval(heartbeatInterval);
+    };
+  }, [activitySessionId]);
+
   // Lifecycle
   useEffect(() => {
     if (!roomId || !userName || !user) return;
@@ -591,10 +609,26 @@ export default function Room() {
         const ws = new WebSocket(signalingUrl);
         socketRef.current = ws;
 
-        ws.onopen = () => {
+        ws.onopen = async () => {
           console.log('✅ WebSocket connected successfully');
           setIsConnected(true);
           setConnectionStatus('Connected');
+          
+          // Start activity tracking
+          try {
+            if (user?.uid && actualRoomId && officeId) {
+              const sessionId = await startActivityTracking(
+                user.uid,
+                officeId,
+                actualRoomId,
+                userName
+              );
+              setActivitySessionId(sessionId);
+              console.log('✅ Activity tracking started:', sessionId);
+            }
+          } catch (error) {
+            console.error('❌ Failed to start activity tracking:', error);
+          }
           
           // Send join message with authenticated user info
           const userInfo = {
@@ -666,6 +700,15 @@ export default function Room() {
     // Cleanup
     return () => {
       console.log('🧹 Cleaning up room connection');
+      
+      // Stop activity tracking
+      if (activitySessionId) {
+        stopActivityTracking(activitySessionId).then((duration) => {
+          console.log('✅ Activity tracking stopped. Session duration:', duration, 'minutes');
+        }).catch((error) => {
+          console.error('❌ Failed to stop activity tracking:', error);
+        });
+      }
       
       // Close WebSocket connection
       if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
@@ -1141,24 +1184,7 @@ export default function Room() {
             S
           </button>
 
-          <button
-            onClick={() => router.back()}
-            style={{
-              padding: isMobile ? '6px 12px' : '8px 16px',
-              backgroundColor: '#DB4437',
-              color: 'white',
-              border: 'none',
-              borderRadius: isMobile ? '16px' : '20px',
-              cursor: 'pointer',
-              fontSize: isMobile ? '12px' : '14px',
-              fontWeight: '500',
-              display: 'flex',
-              alignItems: 'center',
-              gap: isMobile ? '4px' : '6px'
-            }}
-          >
-            📞 {isMobile ? '' : 'End call'}
-          </button>
+
         </div>
       </header>
 

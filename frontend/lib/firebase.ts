@@ -533,6 +533,41 @@ export const updateActivityHeartbeat = async (sessionId: string): Promise<void> 
   }
 };
 
+// Get user role in an office
+export const getUserRoleInOffice = async (userId: string, officeId: string): Promise<'owner' | 'member' | null> => {
+  try {
+    // Check if user is the office owner
+    const officeRef = doc(db, 'offices', officeId);
+    const officeSnap = await getDoc(officeRef);
+    
+    if (officeSnap.exists()) {
+      const officeData = officeSnap.data();
+      if (officeData.ownerId === userId) {
+        return 'owner';
+      }
+    }
+
+    // Check if user is a member through userOffices collection
+    const userOfficesRef = doc(db, 'userOffices', userId);
+    const userOfficesSnap = await getDoc(userOfficesRef);
+    
+    if (userOfficesSnap.exists()) {
+      const userOfficesData = userOfficesSnap.data();
+      if (userOfficesData.memberOffices && userOfficesData.memberOffices.includes(officeId)) {
+        return 'member';
+      }
+      if (userOfficesData.ownedOffices && userOfficesData.ownedOffices.includes(officeId)) {
+        return 'owner';
+      }
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Error getting user role in office:', error);
+    return null;
+  }
+};
+
 export const subscribeToUserRooms = (userId: string, callback: (userRooms: UserRooms | null) => void) => {
   const userRoomsRef = doc(db, 'userRooms', userId);
   
