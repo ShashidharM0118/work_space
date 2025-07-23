@@ -851,41 +851,39 @@ export default function Room() {
       height: '100vh',
       display: 'flex',
       flexDirection: 'column',
-      backgroundColor: '#0F1419',
-      color: 'white'
+      backgroundColor: '#0F2027',
+      color: 'white',
+      fontFamily: '"Google Sans", Roboto, Arial, sans-serif'
     }}>
       {/* Header */}
       <header style={{
-        padding: '16px 24px',
-        backgroundColor: '#202124',
-        borderBottom: '1px solid #5f6368',
+        padding: '12px 24px',
+        backgroundColor: '#1F1F1F',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        flexWrap: 'wrap',
-        gap: '16px'
+        borderBottom: '1px solid #333'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <h1 style={{ 
-            fontSize: '20px', 
-            margin: 0, 
-            fontWeight: '600' 
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{ 
+            fontSize: '24px',
+            fontWeight: '400',
+            color: '#E8EAED'
           }}>
-            Room: {roomId}
-          </h1>
+            {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} | {roomId}
+          </div>
         </div>
 
         <div style={{ 
           display: 'flex',
           alignItems: 'center',
-          gap: '12px',
-          flexWrap: 'wrap'
+          gap: '8px'
         }}>
-          <div style={{ 
-            padding: '6px 12px', 
-            borderRadius: '16px', 
-            backgroundColor: isConnected ? '#137333' : '#d93025',
+          <div style={{
+            padding: '6px 12px',
+            backgroundColor: isConnected ? '#0F9D58' : '#DB4437',
             color: 'white',
+            borderRadius: '12px',
             fontSize: '12px',
             fontWeight: '500',
             display: 'flex',
@@ -893,38 +891,31 @@ export default function Room() {
             gap: '4px'
           }}>
             <div style={{
-              width: '8px',
-              height: '8px',
+              width: '6px',
+              height: '6px',
               borderRadius: '50%',
               backgroundColor: 'white'
             }} />
             {connectionStatus}
-          </div>
-          
-          <div style={{
-            padding: '6px 12px',
-            backgroundColor: '#3c4043',
-            borderRadius: '16px',
-            fontSize: '12px',
-            fontWeight: '500'
-          }}>
-            👥 {participants.length + 1} participant{participants.length !== 0 ? 's' : ''}
           </div>
 
           <button
             onClick={() => router.back()}
             style={{
               padding: '8px 16px',
-              backgroundColor: '#d93025',
+              backgroundColor: '#DB4437',
               color: 'white',
               border: 'none',
               borderRadius: '20px',
               cursor: 'pointer',
               fontSize: '14px',
-              fontWeight: '500'
+              fontWeight: '500',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
             }}
           >
-            Leave Room
+            📞 End call
           </button>
         </div>
       </header>
@@ -934,30 +925,37 @@ export default function Room() {
         flex: 1, 
         display: 'flex',
         position: 'relative',
-        overflow: 'hidden'
+        overflow: 'hidden',
+        backgroundColor: '#0F2027'
       }}>
-        {/* Video/Whiteboard Area */}
+        {/* Video Area */}
         <div style={{ 
           flex: 1, 
           display: 'flex',
           flexDirection: 'column',
-          alignItems: 'center',
           justifyContent: 'center',
+          alignItems: 'center',
           padding: '20px',
-          gap: '20px'
+          gap: '16px'
         }}>
           {!showWhiteboard ? (
-            <>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+              gap: '16px',
+              width: '100%',
+              maxWidth: '1200px',
+              justifyContent: 'center'
+            }}>
               {/* My Video */}
               <div style={{
                 position: 'relative',
-                width: '100%',
-                maxWidth: '400px',
                 aspectRatio: '16/9',
-                backgroundColor: '#000',
-                borderRadius: '12px',
+                backgroundColor: '#1A4A3B',
+                borderRadius: '16px',
                 overflow: 'hidden',
-                border: '2px solid #5f6368'
+                border: '2px solid #0F9D58',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
               }}>
                 <video 
                   ref={myVideo} 
@@ -972,16 +970,32 @@ export default function Room() {
                 />
                 <div style={{
                   position: 'absolute',
-                  bottom: '12px',
-                  left: '12px',
+                  bottom: '16px',
+                  left: '16px',
                   backgroundColor: 'rgba(0,0,0,0.8)',
                   color: 'white',
-                  padding: '4px 8px',
-                  borderRadius: '16px',
-                  fontSize: '12px',
-                  fontWeight: '500'
+                  padding: '6px 12px',
+                  borderRadius: '20px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
                 }}>
-                  You {isScreenSharing ? '(Screen)' : '(Camera)'}
+                  <div style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '50%',
+                    backgroundColor: '#0F9D58',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '16px',
+                    fontWeight: '600'
+                  }}>
+                    {userName.charAt(0).toUpperCase()}
+                  </div>
+                  {userName} {isScreenSharing ? '(Screen)' : ''}
                 </div>
                 {!streamRef.current?.getVideoTracks()[0]?.enabled && (
                   <div style={{
@@ -989,50 +1003,74 @@ export default function Room() {
                     top: '50%',
                     left: '50%',
                     transform: 'translate(-50%, -50%)',
-                    backgroundColor: 'rgba(0,0,0,0.9)',
+                    backgroundColor: '#0F9D58',
                     color: 'white',
-                    padding: '12px 20px',
-                    borderRadius: '8px',
-                    textAlign: 'center',
-                    fontSize: '14px'
+                    width: '80px',
+                    height: '80px',
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '36px',
+                    fontWeight: '600'
                   }}>
-                    📹 Camera Off
+                    {userName.charAt(0).toUpperCase()}
                   </div>
                 )}
               </div>
 
               {/* Other participants */}
               {console.log('🎥 Rendering peers:', peers.length, 'participants:', participants.length)}
-              {peers.length > 0 ? (
+              {peers.map(({ id, peer }) => {
+                console.log('🎥 Rendering peer video for:', id);
+                return <PeerVideo key={id} peer={peer} peerId={id} />;
+              })}
+              
+              {/* Connection status for participants without peers */}
+              {participants.length > 1 && peers.length === 0 && (
                 <div style={{
+                  aspectRatio: '16/9',
+                  backgroundColor: '#1A4A3B',
+                  borderRadius: '16px',
                   display: 'flex',
-                  gap: '16px',
-                  flexWrap: 'wrap',
+                  flexDirection: 'column',
+                  alignItems: 'center',
                   justifyContent: 'center',
-                  maxWidth: '100%'
+                  padding: '20px',
+                  border: '2px solid #0F9D58',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
                 }}>
-                  {peers.map(({ id, peer }) => {
-                    console.log('🎥 Rendering peer video for:', id);
-                    return <PeerVideo key={id} peer={peer} peerId={id} />;
-                  })}
-                </div>
-              ) : (
-                participants.length > 1 && (
                   <div style={{
-                    padding: '20px',
-                    backgroundColor: 'rgba(255,255,255,0.1)',
-                    borderRadius: '12px',
-                    textAlign: 'center',
-                    color: 'white'
+                    width: '60px',
+                    height: '60px',
+                    borderRadius: '50%',
+                    backgroundColor: '#0F9D58',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '24px',
+                    marginBottom: '16px'
                   }}>
-                    <p>🔄 Connecting to {participants.length - 1} participant(s)...</p>
-                    <p style={{ fontSize: '14px', opacity: 0.7 }}>
-                      Participants: {participants.map(p => p.name).join(', ')}
-                    </p>
+                    🔄
                   </div>
-                )
+                  <p style={{ 
+                    color: 'white', 
+                    fontSize: '16px',
+                    fontWeight: '500',
+                    margin: '0 0 8px 0'
+                  }}>
+                    Connecting to participants...
+                  </p>
+                  <p style={{ 
+                    color: '#B0BEC5', 
+                    fontSize: '14px',
+                    margin: 0 
+                  }}>
+                    {participants.filter(p => p.id !== myId.current).map(p => p.name).join(', ')}
+                  </p>
+                </div>
               )}
-            </>
+            </div>
           ) : (
             /* Whiteboard */
             <div style={{ 
