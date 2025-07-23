@@ -1,12 +1,16 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   async rewrites() {
-    return [
-      {
-        source: '/ws/:path*',
-        destination: 'http://localhost:8000/ws/:path*',
-      },
-    ];
+    // Only proxy to localhost in development
+    if (process.env.NODE_ENV === 'development') {
+      return [
+        {
+          source: '/ws/:path*',
+          destination: 'http://localhost:8000/ws/:path*',
+        },
+      ];
+    }
+    return [];
   },
   async headers() {
     return [
@@ -25,9 +29,25 @@ const nextConfig = {
             key: 'Referrer-Policy',
             value: 'strict-origin-when-cross-origin',
           },
+          {
+            key: 'X-Frame-Options',
+            value: 'DENY',
+          },
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
         ],
       },
     ];
+  },
+  // Enable experimental features for better performance
+  experimental: {
+    optimizeCss: true,
+  },
+  // Compress images
+  images: {
+    formats: ['image/webp', 'image/avif'],
   },
 };
 

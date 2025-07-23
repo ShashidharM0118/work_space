@@ -38,6 +38,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Health check endpoint
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy", "firebase": FIREBASE_INITIALIZED}
+
 # Initialize Firebase with Realtime Database
 FIREBASE_INITIALIZED = False
 firebase_ref = None
