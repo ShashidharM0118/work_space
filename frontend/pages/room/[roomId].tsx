@@ -40,13 +40,27 @@ export default function Room() {
     : '';
 
   const createPeer = (peerId: string, stream: MediaStream, initiator: boolean) => {
-    const peer = new Peer({ initiator, trickle: false, stream });
+    const peer = new Peer({ 
+      initiator, 
+      trickle: false, 
+      stream,
+      config: {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:global.stun.twilio.com:3478' }
+        ]
+      }
+    });
 
     peer.on('signal', (data) => {
       console.log('📤 Sending signal to peer:', peerId);
       socketRef.current?.send(
         JSON.stringify({ type: 'signal', id: myId.current, target: peerId, signal: data })
       );
+    });
+
+    peer.on('stream', (remoteStream) => {
+      console.log('📹 Received stream from peer:', peerId, remoteStream.getTracks());
     });
 
     peer.on('close', () => {
@@ -61,6 +75,10 @@ export default function Room() {
 
     peer.on('error', (err) => {
       console.error('❌ Peer error:', peerId, err);
+    });
+
+    peer.on('data', (data) => {
+      console.log('📨 Received data from peer:', peerId, data);
     });
 
     return peer;
@@ -102,11 +120,27 @@ export default function Room() {
     if (!roomId) return;
 
     setConnectionStatus('Getting camera access...');
+   
+   // Request both video and audio with specific constraints
     navigator.mediaDevices
-      .getUserMedia({ video: true, audio: true })
+     .getUserMedia({ 
+       video: { 
+         width: { ideal: 1280 },
+         height: { ideal: 720 },
+         frameRate: { ideal: 30 }
+       }, 
+       audio: {
+         echoCancellation: true,
+         noiseSuppression: true,
+         autoGainControl: true
+       }
+     })
       .then((stream) => {
         streamRef.current = stream;
         setMediaError('');
+       
+       console.log('🎥 Got local stream:', stream.getTracks().map(t => `${t.kind}: ${t.label}`));
+       
         if (myVideo.current) {
           myVideo.current.srcObject = stream;
           myVideo.current.muted = true;
@@ -167,6 +201,24 @@ export default function Room() {
     setNewMsg('');
   };
 
+  // Debug helpers
+  const testConnections = () => {
+    console.log('🔍 Connection Test:');
+    console.log('- WebSocket:', socketRef.current?.readyState === 1 ? '✅ Connected' : '❌ Disconnected');
+    console.log('- Local stream:', streamRef.current ? '✅ Active' : '❌ None');
+    console.log('- Local tracks:', streamRef.current?.getTracks().map(t => `${t.kind}: ${t.enabled}`) || 'None');
+    console.log('- Peers count:', peersRef.current.length);
+    
+    peersRef.current.forEach((peerRef, i) => {
+      const peer = peerRef.peer;
+      console.log(`- Peer ${i + 1} (${peerRef.id.slice(0, 8)}):`, {
+        connected: peer.connected,
+        destroyed: peer.destroyed,
+        initiator: peer.initiator
+      });
+    });
+  };
+
   /* -------------------------------------------------- */
   return (
     <div style={{ padding: 16, fontFamily: 'Arial, sans-serif' }}>
@@ -181,6 +233,26 @@ export default function Room() {
         }}>
           {connectionStatus}
         </div>
+      </div>
+
+      <div style={{ marginBottom: 16 }}>
+        <button 
+          onClick={testConnections}
+          style={{
+            padding: '4px 8px',
+            backgroundColor: '#9E9E9E',
+            color: 'white',
+            border: 'none',
+            borderRadius: 4,
+            fontSize: '12px',
+            cursor: 'pointer'
+          }}
+        >
+          🔍 Test Connections (Check Console)
+        </button>
+        <span style={{ marginLeft: 8, fontSize: '12px', color: '#666' }}>
+          Connected peers: {peers.length}
+        </span>
       </div>
 
       {mediaError && (
@@ -284,16 +356,44 @@ export default function Room() {
 function RemoteVideo({ peer, peerId }: { peer: Peer.Instance | undefined; peerId: string }) {
   const ref = useRef<HTMLVideoElement>(null);
   const [hasStream, setHasStream] = useState(false);
+  const [streamInfo, setStreamInfo] = useState('');
 
   useEffect(() => {
     if (!peer) return;
+   
+    console.log('🔧 Setting up remote video for peer:', peerId);
+   
     peer.on('stream', (stream) => {
       console.log('📹 Received video stream from:', peerId);
+      console.log('📹 Stream tracks:', stream.getTracks().map(t => `${t.kind}: ${t.enabled}`));
+      
+      const videoTracks = stream.getVideoTracks();
+      const audioTracks = stream.getAudioTracks();
+      setStreamInfo(`Video: ${videoTracks.length}, Audio: ${audioTracks.length}`);
+      
       if (ref.current) {
         ref.current.srcObject = stream;
         setHasStream(true);
+       
+        // Ensure the video element plays
+        ref.current.play().catch(err => {
+          console.error('❌ Failed to play remote video:', err);
+        });
       }
     });
+   
+    peer.on('connect', () => {
+      console.log('✅ Peer data channel connected:', peerId);
+    });
+   
+    peer.on('error', (err) => {
+      console.error('❌ Remote peer error:', peerId, err);
+      setStreamInfo('Error: ' + err.message);
+    });
+   
+    return () => {
+      console.log('🧹 Cleaning up remote video for:', peerId);
+    };
   }, [peer]);
 
   return (
@@ -302,6 +402,7 @@ function RemoteVideo({ peer, peerId }: { peer: Peer.Instance | undefined; peerId
         ref={ref} 
         autoPlay 
         playsInline 
+        controls={false}
         style={{ 
           width: '100%', 
           borderRadius: 8, 
@@ -320,6 +421,7 @@ function RemoteVideo({ peer, peerId }: { peer: Peer.Instance | undefined; peerId
         fontSize: '12px'
       }}>
         {peerId.slice(0, 8)}
+        {streamInfo && <div style={{ fontSize: '10px' }}>{streamInfo}</div>}
       </div>
       {!hasStream && (
         <div style={{
@@ -331,6 +433,9 @@ function RemoteVideo({ peer, peerId }: { peer: Peer.Instance | undefined; peerId
           textAlign: 'center'
         }}>
           🔗 Connecting...
+          <div style={{ fontSize: '12px', marginTop: 4 }}>
+            Waiting for stream from {peerId.slice(0, 8)}
+          </div>
         </div>
       )}
     </div>
