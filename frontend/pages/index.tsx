@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { useAuth } from '../context/AuthContext';
-import { getRecentRooms, getOwnedOffices, subscribeToUserRooms, type RoomMembership, type UserRooms } from '../lib/firebase';
+import { getRecentRooms, getOwnedOffices, subscribeToUserRooms, createOffice, sendEmailInvitation, type RoomMembership, type UserRooms } from '../lib/firebase';
 import { v4 as uuidv4 } from 'uuid';
 
 interface Office {
@@ -58,6 +58,7 @@ export default function Home() {
   const { user, signInWithGoogle, signOut } = useAuth();
   const [showCreateOffice, setShowCreateOffice] = useState(false);
   const [showOfficeSelect, setShowOfficeSelect] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
   const [hoveredOffice, setHoveredOffice] = useState<string | null>(null);
   const [selectedOffice, setSelectedOffice] = useState<string | null>(null);
   const [userName, setUserName] = useState('');
@@ -65,13 +66,20 @@ export default function Home() {
   const [isEntering, setIsEntering] = useState(false);
   const [officeCode, setOfficeCode] = useState('');
   const [newOfficeName, setNewOfficeName] = useState('');
+  const [newOfficeDescription, setNewOfficeDescription] = useState('');
   const [copySuccess, setCopySuccess] = useState(false);
+  const [isCreatingOffice, setIsCreatingOffice] = useState(false);
 
   // Room management state
   const [recentRooms, setRecentRooms] = useState<RoomMembership[]>([]);
   const [ownedOffices, setOwnedOffices] = useState<string[]>([]);
   const [userRooms, setUserRooms] = useState<UserRooms | null>(null);
   const [showDashboard, setShowDashboard] = useState(true);
+
+  // Invitation state
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteMessage, setInviteMessage] = useState('');
+  const [selectedOfficeForInvite, setSelectedOfficeForInvite] = useState<string | null>(null);
 
   // Auto-fill user name from Google account
   useEffect(() => {
@@ -116,10 +124,29 @@ export default function Home() {
     setIsSigningIn(true);
     setAuthError('');
     
+    // Set a timeout to reset loading state in case authentication gets stuck
+    const timeoutId = setTimeout(() => {
+      setIsSigningIn(false);
+      setAuthError('Authentication timed out. Please try again.');
+    }, 30000); // 30 seconds timeout
+    
     try {
-      await signInWithGoogle();
+      const result = await signInWithGoogle();
+      
+      // Clear timeout if authentication completes
+      clearTimeout(timeoutId);
+      
+      // If result is null, it means we're using redirect method
+      if (result === null) {
+        // Don't reset isSigningIn yet, redirect will handle it
+        return;
+      }
+      
+      setIsSigningIn(false);
     } catch (error: any) {
+      clearTimeout(timeoutId);
       console.error('Sign in error:', error);
+      setIsSigningIn(false);
       
       let errorMessage = 'Failed to sign in. Please try again.';
       
@@ -131,24 +158,63 @@ export default function Home() {
         errorMessage = 'Pop-up was blocked by your browser. Please allow pop-ups and try again.';
       } else if (error.code === 'auth/network-request-failed') {
         errorMessage = 'Network error. Please check your connection and try again.';
+      } else if (error.message.includes('Cross-Origin-Opener-Policy') || error.message.includes('opener')) {
+        errorMessage = 'Authentication popup was blocked. Please disable popup blockers and try again.';
       }
       
       setAuthError(errorMessage);
-    } finally {
-      setIsSigningIn(false);
     }
   };
 
-  const createNewOffice = () => {
-    if (!newOfficeName.trim()) return;
-    const officeId = uuidv4();
-    localStorage.setItem('officeName', newOfficeName.trim());
-    router.push(`/office/${officeId}`);
+  const createNewOffice = async () => {
+    if (!newOfficeName.trim()) {
+      setAuthError('Please enter an office name.');
+      return;
+    }
+
+    if (!user) {
+      setAuthError('You must be signed in to create an office.');
+      return;
+    }
+
+    setIsCreatingOffice(true);
+    try {
+      const description = newOfficeDescription.trim() || 'A collaborative workspace for teams';
+      const { office, officeId } = await createOffice(
+        newOfficeName.trim(),
+        description,
+        user.uid,
+        user.displayName || user.email || 'Unknown User'
+      );
+      
+      // Close modal and reset form
+      setShowCreateOffice(false);
+      setNewOfficeName('');
+      setNewOfficeDescription('');
+      setAuthError('');
+      
+      // Navigate to the new office
+      await router.push(`/office/${officeId}`);
+    } catch (error) {
+      console.error('Error creating office:', error);
+      setAuthError('Failed to create office. Please try again.');
+    } finally {
+      setIsCreatingOffice(false);
+    }
   };
 
-  const joinOfficeByCode = () => {
-    if (!officeCode.trim()) return;
-    router.push(`/office/${officeCode.trim()}`);
+  const joinOfficeByCode = async () => {
+    if (!officeCode.trim()) {
+      setAuthError('Please enter an office code.');
+      return;
+    }
+
+    try {
+      await router.push(`/office/${officeCode.trim()}`);
+    } catch (error) {
+      console.error('Error joining office:', error);
+      setAuthError('Failed to join office. Please check the code and try again.');
+    }
   };
 
   const handleOfficeClick = (officeId: string) => {
@@ -167,12 +233,44 @@ export default function Home() {
     }, 1000);
   };
 
-  const shareOfficeLink = (officeId: string) => {
-    const link = `${window.location.origin}/office/${officeId}`;
-    navigator.clipboard.writeText(link).then(() => {
+  const sendInvitation = async () => {
+    if (!inviteEmail.trim() || !selectedOfficeForInvite || !user) {
+      setAuthError('Please fill in all required fields.');
+      return;
+    }
+
+    try {
+      const result = await sendEmailInvitation(
+        selectedOfficeForInvite,
+        'main-hall', // Default to main hall for now
+        user.uid,
+        user.displayName || 'Unknown User',
+        user.email || '',
+        inviteEmail.trim(),
+        inviteMessage.trim()
+      );
+
+      setShowInviteModal(false);
+      setInviteEmail('');
+      setInviteMessage('');
+      setSelectedOfficeForInvite(null);
+      
+      // Show success message
       setCopySuccess(true);
-      setTimeout(() => setCopySuccess(false), 2000);
-    });
+      setTimeout(() => setCopySuccess(false), 3000);
+      
+    } catch (error) {
+      console.error('Error sending invitation:', error);
+      setAuthError('Failed to send invitation. Please try again.');
+    }
+  };
+
+  const handleOfficeHover = (officeId: string) => {
+    setHoveredOffice(officeId);
+  };
+
+  const handleOfficeLeave = () => {
+    setHoveredOffice(null);
   };
 
   const getOfficeStyle = (office: Office) => ({
@@ -963,7 +1061,564 @@ export default function Home() {
           </div>
         )}
 
-        {/* Continue with other existing modals... */}
+        {/* Create Office Modal */}
+        {showCreateOffice && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            backdropFilter: 'blur(10px)',
+            padding: '20px'
+          }}>
+            <div style={{
+              backgroundColor: 'white',
+              borderRadius: '24px',
+              padding: '40px',
+              width: '100%',
+              maxWidth: '480px',
+              textAlign: 'center',
+              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)'
+            }}>
+                               <h2 style={{
+                   fontSize: '28px',
+                   fontWeight: '800',
+                   color: '#0F172A',
+                   margin: '0 0 12px 0'
+                 }}>
+                   Create Your Office
+                 </h2>
+                 <p style={{
+                   color: '#64748B',
+                   margin: '0 0 32px 0',
+                   fontSize: '16px',
+                   lineHeight: '1.5'
+                 }}>
+                   Create a unique virtual office space for your team
+                 </p>
+   
+                 <input
+                   type="text"
+                   value={newOfficeName}
+                   onChange={(e) => setNewOfficeName(e.target.value)}
+                   placeholder="Office name (e.g., Marketing Team HQ)..."
+                   maxLength={50}
+                   style={{
+                     width: '100%',
+                     padding: '16px 20px',
+                     fontSize: '16px',
+                     border: '2px solid #E2E8F0',
+                     borderRadius: '12px',
+                     outline: 'none',
+                     marginBottom: '16px',
+                     transition: 'all 0.3s ease',
+                     fontWeight: '500',
+                     boxSizing: 'border-box'
+                   }}
+                   onFocus={(e) => {
+                     e.target.style.borderColor = '#0052CC';
+                     e.target.style.boxShadow = '0 0 0 3px rgba(0, 82, 204, 0.1)';
+                   }}
+                   onBlur={(e) => {
+                     e.target.style.borderColor = '#E2E8F0';
+                     e.target.style.boxShadow = 'none';
+                   }}
+                   autoFocus
+                 />
+
+                 <textarea
+                   value={newOfficeDescription}
+                   onChange={(e) => setNewOfficeDescription(e.target.value)}
+                   placeholder="Description (optional)..."
+                   maxLength={200}
+                   rows={3}
+                   style={{
+                     width: '100%',
+                     padding: '16px 20px',
+                     fontSize: '14px',
+                     border: '2px solid #E2E8F0',
+                     borderRadius: '12px',
+                     outline: 'none',
+                     marginBottom: '24px',
+                     transition: 'all 0.3s ease',
+                     fontWeight: '500',
+                     boxSizing: 'border-box',
+                     resize: 'none',
+                     fontFamily: 'inherit'
+                   }}
+                   onFocus={(e) => {
+                     e.target.style.borderColor = '#0052CC';
+                     e.target.style.boxShadow = '0 0 0 3px rgba(0, 82, 204, 0.1)';
+                   }}
+                   onBlur={(e) => {
+                     e.target.style.borderColor = '#E2E8F0';
+                     e.target.style.boxShadow = 'none';
+                   }}
+                 />
+
+              <input
+                type="text"
+                value={newOfficeDescription}
+                onChange={(e) => setNewOfficeDescription(e.target.value)}
+                placeholder="Enter office description (optional)"
+                maxLength={100}
+                style={{
+                  width: '100%',
+                  padding: '20px 24px',
+                  fontSize: '16px',
+                  border: '2px solid #E2E8F0',
+                  borderRadius: '16px',
+                  outline: 'none',
+                  marginBottom: '32px',
+                  transition: 'all 0.3s ease',
+                  fontWeight: '600',
+                  boxSizing: 'border-box'
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#0052CC';
+                  e.target.style.boxShadow = '0 0 0 3px rgba(0, 82, 204, 0.1)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = '#E2E8F0';
+                  e.target.style.boxShadow = 'none';
+                }}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter' && newOfficeDescription.trim()) {
+                    // No action on Enter for description
+                  }
+                }}
+              />
+
+              {authError && (
+                <div style={{
+                  marginBottom: '20px',
+                  padding: '12px 16px',
+                  backgroundColor: '#FEF2F2',
+                  border: '1px solid #FECACA',
+                  borderRadius: '12px',
+                  color: '#DC2626',
+                  fontSize: '14px',
+                  textAlign: 'left'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '16px' }}>⚠️</span>
+                    {authError}
+                  </div>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                <button
+                  onClick={() => {
+                    setShowCreateOffice(false);
+                    setNewOfficeName('');
+                    setNewOfficeDescription('');
+                    setAuthError('');
+                  }}
+                  style={{
+                    flex: 1,
+                    minWidth: '120px',
+                    padding: '16px 24px',
+                    backgroundColor: '#F3F4F6',
+                    color: '#374151',
+                    border: 'none',
+                    borderRadius: '16px',
+                    fontSize: '16px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={createNewOffice}
+                  disabled={!newOfficeName.trim() || isCreatingOffice}
+                  style={{
+                    flex: 1,
+                    minWidth: '120px',
+                    padding: '16px 24px',
+                    background: newOfficeName.trim() && !isCreatingOffice
+                      ? 'linear-gradient(135deg, #0052CC 0%, #0065FF 100%)'
+                      : '#9CA3AF',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '16px',
+                    fontSize: '16px',
+                    fontWeight: '700',
+                    cursor: newOfficeName.trim() && !isCreatingOffice ? 'pointer' : 'not-allowed',
+                    transition: 'all 0.3s ease'
+                  }}
+                >
+                  {isCreatingOffice ? (
+                    <>
+                      <div style={{
+                        width: '24px',
+                        height: '24px',
+                        border: '3px solid rgba(255,255,255,0.3)',
+                        borderTop: '3px solid white',
+                        borderRadius: '50%',
+                        animation: 'spin 1s linear infinite'
+                      }} />
+                      Creating...
+                    </>
+                  ) : (
+                    'Create Office 🏢'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Join by Code Modal */}
+        {showNameInput && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            backdropFilter: 'blur(10px)',
+            padding: '20px'
+          }}>
+            <div style={{
+              backgroundColor: 'white',
+              borderRadius: '24px',
+              padding: '40px',
+              width: '100%',
+              maxWidth: '480px',
+              textAlign: 'center',
+              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
+              transform: isEntering ? 'scale(0.95) rotateX(5deg)' : 'scale(1)',
+              transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
+            }}>
+              {!isEntering ? (
+                <>
+                  <div style={{ fontSize: '64px', marginBottom: '20px' }}>
+                    {defaultOffices.find(o => o.id === selectedOffice)?.icon}
+                  </div>
+                  <h2 style={{
+                    color: defaultOffices.find(o => o.id === selectedOffice)?.color,
+                    margin: '0 0 12px 0',
+                    fontSize: '28px',
+                    fontWeight: '800'
+                  }}>
+                    Joining {defaultOffices.find(o => o.id === selectedOffice)?.name}
+                  </h2>
+                  <p style={{
+                    color: '#64748B',
+                    margin: '0 0 32px 0',
+                    fontSize: '16px',
+                    lineHeight: '1.5'
+                  }}>
+                    {defaultOffices.find(o => o.id === selectedOffice)?.description}
+                  </p>
+                  <input
+                    type="text"
+                    placeholder="Your display name"
+                    value={userName}
+                    onChange={(e) => setUserName(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && joinRoom()}
+                    style={{
+                      width: '100%',
+                      padding: '16px 20px',
+                      border: '2px solid #E2E8F0',
+                      borderRadius: '16px',
+                      fontSize: '16px',
+                      marginBottom: '32px',
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                      fontWeight: '500',
+                      transition: 'border-color 0.3s ease'
+                    }}
+                    autoFocus
+                  />
+                  <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                    <button
+                      onClick={() => {
+                        setShowNameInput(false);
+                        setSelectedOffice(null);
+                        setUserName(user?.displayName || '');
+                      }}
+                      style={{
+                        flex: 1,
+                        minWidth: '120px',
+                        padding: '16px 24px',
+                        backgroundColor: '#F3F4F6',
+                        color: '#374151',
+                        border: 'none',
+                        borderRadius: '16px',
+                        fontSize: '16px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        transition: 'all 0.3s ease'
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={joinRoom}
+                      disabled={!userName.trim()}
+                      style={{
+                        flex: 1,
+                        minWidth: '120px',
+                        padding: '16px 24px',
+                        background: userName.trim() 
+                          ? `linear-gradient(135deg, ${defaultOffices.find(o => o.id === selectedOffice)?.color} 0%, ${defaultOffices.find(o => o.id === selectedOffice)?.color}CC 100%)`
+                          : '#9CA3AF',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '16px',
+                        fontSize: '16px',
+                        fontWeight: '700',
+                        cursor: userName.trim() ? 'pointer' : 'not-allowed',
+                        transition: 'all 0.3s ease'
+                      }}
+                    >
+                      Join Room 🚀
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div>
+                  <div style={{
+                    fontSize: '80px',
+                    marginBottom: '20px',
+                    animation: 'spin 2s linear infinite'
+                  }}>
+                    🚀
+                  </div>
+                  <h2 style={{
+                    color: defaultOffices.find(o => o.id === selectedOffice)?.color,
+                    margin: 0,
+                    fontSize: '24px',
+                    fontWeight: '800'
+                  }}>
+                    Entering room...
+                  </h2>
+                  <p style={{
+                    color: '#64748B',
+                    margin: '12px 0 0 0',
+                    fontSize: '16px'
+                  }}>
+                    Setting up your workspace
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Email Invitation Modal */}
+        {showInviteModal && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            backdropFilter: 'blur(10px)',
+            padding: '20px'
+          }}>
+            <div style={{
+              backgroundColor: 'white',
+              borderRadius: '24px',
+              padding: '40px',
+              width: '100%',
+              maxWidth: '500px',
+              textAlign: 'center',
+              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)'
+            }}>
+              <h2 style={{
+                fontSize: '28px',
+                fontWeight: '800',
+                color: '#0F172A',
+                margin: '0 0 12px 0'
+              }}>
+                Send Invitation
+              </h2>
+              <p style={{
+                color: '#64748B',
+                margin: '0 0 32px 0',
+                fontSize: '16px',
+                lineHeight: '1.5'
+              }}>
+                Invite someone to join your virtual office
+              </p>
+
+              <input
+                type="email"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                placeholder="Enter email address..."
+                style={{
+                  width: '100%',
+                  padding: '16px 20px',
+                  fontSize: '16px',
+                  border: '2px solid #E2E8F0',
+                  borderRadius: '12px',
+                  outline: 'none',
+                  marginBottom: '16px',
+                  transition: 'all 0.3s ease',
+                  fontWeight: '500',
+                  boxSizing: 'border-box'
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#0052CC';
+                  e.target.style.boxShadow = '0 0 0 3px rgba(0, 82, 204, 0.1)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = '#E2E8F0';
+                  e.target.style.boxShadow = 'none';
+                }}
+                autoFocus
+              />
+
+              <textarea
+                value={inviteMessage}
+                onChange={(e) => setInviteMessage(e.target.value)}
+                placeholder="Add a personal message (optional)..."
+                maxLength={200}
+                rows={3}
+                style={{
+                  width: '100%',
+                  padding: '16px 20px',
+                  fontSize: '14px',
+                  border: '2px solid #E2E8F0',
+                  borderRadius: '12px',
+                  outline: 'none',
+                  marginBottom: '24px',
+                  transition: 'all 0.3s ease',
+                  fontWeight: '500',
+                  boxSizing: 'border-box',
+                  resize: 'none',
+                  fontFamily: 'inherit'
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#0052CC';
+                  e.target.style.boxShadow = '0 0 0 3px rgba(0, 82, 204, 0.1)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = '#E2E8F0';
+                  e.target.style.boxShadow = 'none';
+                }}
+              />
+
+              {authError && (
+                <div style={{
+                  marginBottom: '20px',
+                  padding: '12px 16px',
+                  backgroundColor: '#FEF2F2',
+                  border: '1px solid #FECACA',
+                  borderRadius: '12px',
+                  color: '#DC2626',
+                  fontSize: '14px',
+                  textAlign: 'left'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '16px' }}>⚠️</span>
+                    {authError}
+                  </div>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                <button
+                  onClick={() => {
+                    setShowInviteModal(false);
+                    setInviteEmail('');
+                    setInviteMessage('');
+                    setSelectedOfficeForInvite(null);
+                    setAuthError('');
+                  }}
+                  style={{
+                    flex: 1,
+                    minWidth: '120px',
+                    padding: '16px 24px',
+                    backgroundColor: '#F3F4F6',
+                    color: '#374151',
+                    border: 'none',
+                    borderRadius: '16px',
+                    fontSize: '16px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={sendInvitation}
+                  disabled={!inviteEmail.trim()}
+                  style={{
+                    flex: 1,
+                    minWidth: '120px',
+                    padding: '16px 24px',
+                    background: inviteEmail.trim() 
+                      ? 'linear-gradient(135deg, #0052CC 0%, #0065FF 100%)'
+                      : '#9CA3AF',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '16px',
+                    fontSize: '16px',
+                    fontWeight: '700',
+                    cursor: inviteEmail.trim() ? 'pointer' : 'not-allowed',
+                    transition: 'all 0.3s ease'
+                  }}
+                >
+                  Send Invitation 📧
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Success Toast */}
+        {copySuccess && (
+          <div style={{
+            position: 'fixed',
+            bottom: '24px',
+            right: '24px',
+            background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+            color: 'white',
+            padding: '16px 24px',
+            borderRadius: '16px',
+            fontSize: '14px',
+            fontWeight: '600',
+            boxShadow: '0 10px 25px -5px rgba(16, 185, 129, 0.4)',
+            zIndex: 1001,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <span style={{ fontSize: '18px' }}>✅</span>
+            Invitation sent successfully!
+          </div>
+        )}
+
+        <style jsx>{`
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
       </div>
     </>
   );

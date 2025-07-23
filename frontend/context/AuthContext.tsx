@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, onAuthStateChanged } from 'firebase/auth';
-import { auth, signInWithGoogle, signOutUser } from '../lib/firebase';
+import { auth, signInWithGoogle, signOutUser, handleAuthRedirect } from '../lib/firebase';
 
 interface AuthContextType {
   user: User | null;
@@ -28,12 +28,38 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    let timeoutId: NodeJS.Timeout;
+    
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
       setLoading(false);
     });
 
-    return unsubscribe;
+    // Check for redirect result on component mount
+    const checkRedirectResult = async () => {
+      try {
+        await handleAuthRedirect();
+      } catch (error) {
+        console.error('Error handling auth redirect:', error);
+      }
+    };
+
+    checkRedirectResult();
+
+    // Set a timeout to ensure loading doesn't get stuck indefinitely
+    timeoutId = setTimeout(() => {
+      if (loading) {
+        console.warn('Auth loading timeout - setting loading to false');
+        setLoading(false);
+      }
+    }, 10000); // 10 seconds timeout
+
+    return () => {
+      unsubscribe();
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
   }, []);
 
   const signOut = async () => {

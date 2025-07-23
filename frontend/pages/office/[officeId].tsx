@@ -350,12 +350,27 @@ export default function Office() {
     }
   };
 
-  const shareOfficeLink = () => {
-    const link = `${window.location.origin}/office/${officeId}`;
-    navigator.clipboard.writeText(link).then(() => {
+  const sendInvitation = async (email: string, message?: string) => {
+    if (!office || !user) return;
+    
+    try {
+      const { sendEmailInvitation } = await import('../../lib/firebase');
+      await sendEmailInvitation(
+        office.id,
+        office.rooms[0]?.id || 'main-hall',
+        user.uid,
+        user.displayName || 'Unknown User',
+        user.email || '',
+        email,
+        message
+      );
+      
       setCopySuccess(true);
-      setTimeout(() => setCopySuccess(false), 2000);
-    });
+      setTimeout(() => setCopySuccess(false), 3000);
+    } catch (error) {
+      console.error('Error sending invitation:', error);
+      setError('Failed to send invitation. Please try again.');
+    }
   };
 
   const getRoomStyle = (room: Room) => ({
@@ -580,28 +595,7 @@ export default function Office() {
               </button>
             )}
 
-            <button
-              onClick={shareOfficeLink}
-              style={{
-                padding: isMobile ? '8px 12px' : '10px 16px',
-                background: 'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.8) 100%)',
-                color: '#0F172A',
-                border: 'none',
-                borderRadius: '20px',
-                cursor: 'pointer',
-                fontSize: isMobile ? '12px' : '14px',
-                fontWeight: '700',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                transition: 'all 0.3s ease'
-              }}
-              onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-1px)'}
-              onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-            >
-              <span style={{ fontSize: '16px' }}>🔗</span>
-              {!isMobile && 'Share Office'}
-            </button>
+
 
             {isOwner && (
               <button
@@ -790,7 +784,7 @@ export default function Office() {
         {/* Continue with rest of modals and components... */}
         {/* For brevity, I'll add the key modals but not all of them */}
 
-        {/* Copy Success Toast */}
+        {/* Success Toast */}
         {copySuccess && (
           <div style={{
             position: 'fixed',
@@ -809,7 +803,7 @@ export default function Office() {
             gap: '8px'
           }}>
             <span style={{ fontSize: '18px' }}>✅</span>
-            Office link copied to clipboard!
+            Invitation sent successfully!
           </div>
         )}
 
