@@ -187,7 +187,7 @@ class ConnectionManager:
         self.user_to_room: Dict[str, str] = {}  # user_id -> room_id
 
     async def connect(self, room_id: str, websocket: WebSocket, user_info: dict = None):
-        await websocket.accept()
+        # Note: WebSocket should already be accepted before calling this method
         self.active_connections.setdefault(room_id, []).append(websocket)
         
         # Store user info

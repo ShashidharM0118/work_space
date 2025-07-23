@@ -61,6 +61,14 @@ export default function Room() {
   const [isOwner, setIsOwner] = useState(false);
   const [officeId, setOfficeId] = useState<string | null>(null);
   const [showDashboard, setShowDashboard] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [sessionStartTime, setSessionStartTime] = useState<Date>(new Date());
+  const [activeMinutes, setActiveMinutes] = useState(0);
+  const [isUserActive, setIsUserActive] = useState(true);
+  const [lastActivityTime, setLastActivityTime] = useState<Date>(new Date());
+  const [officeJoinedDate, setOfficeJoinedDate] = useState<string>('');
+  const [totalWorkingHours, setTotalWorkingHours] = useState(0);
+  const [employeeStats, setEmployeeStats] = useState<any[]>([]);
 
   // Whiteboard helpers
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -447,6 +455,48 @@ export default function Room() {
   };
 
   /* -------------------------------------------------- */
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Only handle shortcuts if not typing in input/textarea
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      switch (e.key.toLowerCase()) {
+        case 'm':
+          // Toggle microphone
+          if (streamRef.current) {
+            const audioTrack = streamRef.current.getAudioTracks()[0];
+            if (audioTrack) {
+              audioTrack.enabled = !audioTrack.enabled;
+              setPeers([...peersRef.current || []]);
+            }
+          }
+          e.preventDefault();
+          break;
+        case 'c':
+          // Toggle camera
+          if (streamRef.current) {
+            const videoTrack = streamRef.current.getVideoTracks()[0];
+            if (videoTrack) {
+              videoTrack.enabled = !videoTrack.enabled;
+              setPeers([...peersRef.current || []]);
+            }
+          }
+          e.preventDefault();
+          break;
+        case 'escape':
+          // Leave call
+          router.push(`/office/${officeId}`);
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [router, officeId]);
+
   // Lifecycle
   useEffect(() => {
     if (!roomId || !userName || !user) return;
@@ -473,6 +523,13 @@ export default function Room() {
 
     setConnectionStatus('Getting camera access...');
    
+    // Check if media devices are available
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setMediaError('Media devices not supported in this browser.');
+      setConnectionStatus('Browser not supported');
+      return;
+    }
+
     // Request both video and audio with specific constraints
     navigator.mediaDevices
       .getUserMedia({ 
@@ -563,7 +620,7 @@ export default function Room() {
         ws.onerror = (error) => {
           console.error('❌ WebSocket error:', error);
           setConnectionStatus('Connection failed');
-          setMediaError('Failed to connect to room. Please try refreshing the page.');
+          setMediaError('Failed to connect to room server. Please check your internet connection and try refreshing the page.');
         };
 
         ws.onclose = (event) => {
@@ -572,7 +629,11 @@ export default function Room() {
           setConnectionStatus('Disconnected');
           
           if (event.code !== 1000) { // Not a normal closure
-            setMediaError('Connection lost. Please refresh the page to reconnect.');
+            if (event.code === 1006) {
+              setMediaError('Connection lost unexpectedly. This may be due to media access issues. Please check your camera/microphone permissions and refresh the page.');
+            } else {
+              setMediaError('Connection lost. Please refresh the page to reconnect.');
+            }
           }
         };
 
@@ -940,13 +1001,13 @@ export default function Room() {
     }}>
       {/* Header */}
       <header style={{
-        padding: isMobile ? '8px 16px' : '12px 24px',
+        padding: isMobile ? '4px 16px' : '12px 24px',
         backgroundColor: '#1F1F1F',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
         borderBottom: '1px solid #333',
-        minHeight: isMobile ? '56px' : '64px'
+        minHeight: isMobile ? '48px' : '64px'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '8px' : '16px', flex: 1, minWidth: 0 }}>
           <div style={{ 
@@ -1032,18 +1093,6 @@ export default function Room() {
             </div>
           )}
 
-          {/* Debug: Show owner status */}
-          <div style={{
-            padding: '4px 8px',
-            backgroundColor: isOwner ? '#6B46C1' : '#666',
-            color: 'white',
-            borderRadius: '8px',
-            fontSize: '10px',
-            fontWeight: '500'
-          }}>
-            {isOwner ? 'OWNER' : 'MEMBER'}
-          </div>
-
           {isOwner && (
             <>
               <button
@@ -1087,6 +1136,29 @@ export default function Room() {
             </>
           )}
 
+          {/* Profile Button */}
+          <button
+            onClick={() => setShowProfile(true)}
+            style={{
+              width: isMobile ? '36px' : '40px',
+              height: isMobile ? '36px' : '40px',
+              borderRadius: '50%',
+              backgroundColor: '#4285F4',
+              color: 'white',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: isMobile ? '16px' : '18px',
+              fontWeight: '600',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginRight: isMobile ? '4px' : '8px'
+            }}
+            title="View Profile"
+          >
+            S
+          </button>
+
           <button
             onClick={() => router.back()}
             style={{
@@ -1123,7 +1195,7 @@ export default function Room() {
           flexDirection: 'column',
           justifyContent: 'center',
           alignItems: 'center',
-          padding: isMobile ? '12px 8px' : '20px',
+          padding: isMobile ? '12px 8px 100px 8px' : '20px 20px 120px 20px',
           gap: isMobile ? '12px' : '16px',
           overflowY: isMobile ? 'auto' : 'hidden'
         }}>
@@ -1430,156 +1502,320 @@ export default function Room() {
         )}
       </div>
 
-      {/* Controls */}
+      {/* Professional Bottom Control Bar */}
       <div style={{
-        position: 'absolute',
-        bottom: isMobile ? '20px' : '24px',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        display: 'flex',
-        gap: isMobile ? '8px' : '12px',
-        backgroundColor: 'rgba(0,0,0,0.8)',
-        padding: isMobile ? '8px 12px' : '12px 20px',
-        borderRadius: '50px',
-        backdropFilter: 'blur(20px)',
-        border: '1px solid rgba(255,255,255,0.1)',
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        background: isMobile 
+          ? 'linear-gradient(180deg, rgba(32, 33, 36, 0) 0%, rgba(32, 33, 36, 0.8) 20%, rgba(32, 33, 36, 0.95) 100%)'
+          : 'rgba(32, 33, 36, 0.95)',
+        backdropFilter: isMobile ? 'blur(20px)' : 'none',
+        padding: isMobile ? '16px 20px 32px 20px' : '16px 40px',
         zIndex: 100
       }}>
-        {/* Microphone */}
-        <button 
-          onClick={() => {
-            if (streamRef.current) {
-              const audioTrack = streamRef.current.getAudioTracks()[0];
-              if (audioTrack) {
-                audioTrack.enabled = !audioTrack.enabled;
-                setPeers([...peersRef.current || []]);
-              }
-            }
-          }}
-          disabled={!streamRef.current}
-          style={{
-            width: isMobile ? '48px' : '56px',
-            height: isMobile ? '48px' : '56px',
-            borderRadius: '50%',
-            backgroundColor: streamRef.current?.getAudioTracks()[0]?.enabled !== false ? '#3C4043' : '#EA4335',
-            color: 'white',
-            border: 'none',
-            cursor: 'pointer',
-            fontSize: isMobile ? '20px' : '24px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            transition: 'all 0.2s ease',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
-          }}
-          title={streamRef.current?.getAudioTracks()[0]?.enabled !== false ? 'Mute microphone' : 'Unmute microphone'}
-        >
-          {streamRef.current?.getAudioTracks()[0]?.enabled !== false ? '🎤' : '🔇'}
-        </button>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: isMobile ? '12px' : '12px',
+          maxWidth: '600px',
+          margin: '0 auto'
+        }}>
+          {/* Left Controls Group */}
+          <div style={{ display: 'flex', gap: isMobile ? '8px' : '10px' }}>
+            {/* Microphone */}
+            <button 
+              onClick={() => {
+                if (streamRef.current) {
+                  const audioTrack = streamRef.current.getAudioTracks()[0];
+                  if (audioTrack) {
+                    audioTrack.enabled = !audioTrack.enabled;
+                    setPeers([...peersRef.current || []]);
+                  }
+                }
+              }}
+              disabled={!streamRef.current}
+              style={{
+                width: isMobile ? '52px' : '48px',
+                height: isMobile ? '52px' : '48px',
+                borderRadius: '50%',
+                backgroundColor: streamRef.current?.getAudioTracks()[0]?.enabled !== false ? 'rgba(255, 255, 255, 0.1)' : '#EA4335',
+                border: `2px solid ${streamRef.current?.getAudioTracks()[0]?.enabled !== false ? 'rgba(255, 255, 255, 0.2)' : '#EA4335'}`,
+                color: 'white',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                outline: 'none',
+                transform: 'scale(1)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'scale(1.05)';
+                e.currentTarget.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.2)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'scale(1)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+              }}
+              title={streamRef.current?.getAudioTracks()[0]?.enabled !== false ? 'Mute microphone (m)' : 'Unmute microphone (m)'}
+            >
+              <svg width={isMobile ? "24" : "20"} height={isMobile ? "24" : "20"} viewBox="0 0 24 24" fill="currentColor">
+                {streamRef.current?.getAudioTracks()[0]?.enabled !== false ? (
+                  <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.49 6-3.31 6-6.72h-1.7z"/>
+                ) : (
+                  <path d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17c0-.06.02-.11.02-.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.33 3 2.99 3 .22 0 .44-.03.65-.08l1.66 1.66c-.71.33-1.5.52-2.31.52-2.76 0-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73 4.27 3z"/>
+                )}
+              </svg>
+            </button>
 
-        {/* Camera */}
-        <button 
-          onClick={() => {
-            if (streamRef.current) {
-              const videoTrack = streamRef.current.getVideoTracks()[0];
-              if (videoTrack) {
-                videoTrack.enabled = !videoTrack.enabled;
-                setPeers([...peersRef.current || []]);
-              }
-            }
-          }}
-          disabled={!streamRef.current}
-          style={{
-            width: isMobile ? '48px' : '56px',
-            height: isMobile ? '48px' : '56px',
-            borderRadius: '50%',
-            backgroundColor: streamRef.current?.getVideoTracks()[0]?.enabled !== false ? '#3C4043' : '#EA4335',
-            color: 'white',
-            border: 'none',
-            cursor: 'pointer',
-            fontSize: isMobile ? '20px' : '24px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            transition: 'all 0.2s ease',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
-          }}
-          title={streamRef.current?.getVideoTracks()[0]?.enabled !== false ? 'Turn off camera' : 'Turn on camera'}
-        >
-          {streamRef.current?.getVideoTracks()[0]?.enabled !== false ? '📹' : '📷'}
-        </button>
+            {/* Camera */}
+            <button 
+              onClick={() => {
+                if (streamRef.current) {
+                  const videoTrack = streamRef.current.getVideoTracks()[0];
+                  if (videoTrack) {
+                    videoTrack.enabled = !videoTrack.enabled;
+                    setPeers([...peersRef.current || []]);
+                  }
+                }
+              }}
+              disabled={!streamRef.current}
+              style={{
+                width: isMobile ? '52px' : '48px',
+                height: isMobile ? '52px' : '48px',
+                borderRadius: '50%',
+                backgroundColor: streamRef.current?.getVideoTracks()[0]?.enabled !== false ? 'rgba(255, 255, 255, 0.1)' : '#EA4335',
+                border: `2px solid ${streamRef.current?.getVideoTracks()[0]?.enabled !== false ? 'rgba(255, 255, 255, 0.2)' : '#EA4335'}`,
+                color: 'white',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                outline: 'none',
+                transform: 'scale(1)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'scale(1.05)';
+                e.currentTarget.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.2)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'scale(1)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+              }}
+              title={streamRef.current?.getVideoTracks()[0]?.enabled !== false ? 'Turn off camera (c)' : 'Turn on camera (c)'}
+            >
+              <svg width={isMobile ? "24" : "28"} height={isMobile ? "24" : "28"} viewBox="0 0 24 24" fill="currentColor">
+                {streamRef.current?.getVideoTracks()[0]?.enabled !== false ? (
+                  <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
+                ) : (
+                  <path d="M21 6.5l-4 4V7c0-.55-.45-1-1-1H9.82L21 17.18V6.5zM3.27 2L2 3.27 4.73 6H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.21 0 .39-.08.55-.18L19.73 21 21 19.73 3.27 2z"/>
+                )}
+              </svg>
+            </button>
+          </div>
 
-        {/* Screen Share */}
-        {!isMobile && (
+          {/* Center - End Call Button */}
           <button 
-            onClick={toggleScreenShare}
-            disabled={!streamRef.current}
-            style={{
-              width: '56px',
-              height: '56px',
+            onClick={() => router.push(`/office/${officeId}`)}
+                          style={{
+                width: isMobile ? '56px' : '52px',
+                height: isMobile ? '56px' : '52px',
               borderRadius: '50%',
-              backgroundColor: isScreenSharing ? '#0F9D58' : '#3C4043',
-              color: 'white',
+              backgroundColor: '#EA4335',
               border: 'none',
+              color: 'white',
               cursor: 'pointer',
-              fontSize: '24px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              transition: 'all 0.2s ease',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              boxShadow: '0 4px 16px rgba(234, 67, 53, 0.4)',
+              outline: 'none',
+              transform: 'scale(1)'
             }}
-            title={isScreenSharing ? 'Stop sharing screen' : 'Present now'}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'scale(1.05)';
+              e.currentTarget.style.boxShadow = '0 6px 20px rgba(234, 67, 53, 0.6)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.boxShadow = '0 4px 16px rgba(234, 67, 53, 0.4)';
+            }}
+            title="Leave call"
           >
-            🖥️
+            <svg width={isMobile ? "26" : "30"} height={isMobile ? "26" : "30"} viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08c-.18-.17-.29-.42-.29-.7 0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71 0 .28-.11.53-.29.7l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.1-.7-.28-.79-.73-1.68-1.36-2.66-1.85-.33-.16-.56-.51-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z"/>
+            </svg>
           </button>
-        )}
 
-        {/* Chat Toggle */}
-        <button 
-          onClick={() => setShowChat(!showChat)}
-          style={{
-            width: isMobile ? '48px' : '56px',
-            height: isMobile ? '48px' : '56px',
-            borderRadius: '50%',
-            backgroundColor: showChat ? '#0F9D58' : '#3C4043',
-            color: 'white',
-            border: 'none',
-            cursor: 'pointer',
-            fontSize: isMobile ? '20px' : '24px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            transition: 'all 0.2s ease',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
-          }}
-          title={showChat ? 'Hide chat' : 'Show chat'}
-        >
-          💬
-        </button>
+          {/* Right Controls Group */}
+          <div style={{ display: 'flex', gap: isMobile ? '8px' : '10px' }}>
+            {/* Screen Share */}
+            {!isMobile && (
+              <button 
+                onClick={toggleScreenShare}
+                disabled={!streamRef.current}
+                style={{
+                  width: '48px',
+                  height: '48px',
+                  borderRadius: '50%',
+                  backgroundColor: isScreenSharing ? '#1976D2' : 'rgba(255, 255, 255, 0.1)',
+                  border: `2px solid ${isScreenSharing ? '#1976D2' : 'rgba(255, 255, 255, 0.2)'}`,
+                  color: 'white',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                  outline: 'none',
+                  transform: 'scale(1)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'scale(1.05)';
+                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.2)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'scale(1)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+                }}
+                title={isScreenSharing ? 'Stop sharing' : 'Present now'}
+              >
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M20 18c1.1 0 1.99-.9 1.99-2L22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4zM4 6h16v10H4V6z"/>
+                </svg>
+              </button>
+            )}
 
-        {/* More Options */}
-        <button 
-          style={{
-            width: isMobile ? '48px' : '56px',
-            height: isMobile ? '48px' : '56px',
+            {/* Chat */}
+            <button 
+              onClick={() => setShowChat(!showChat)}
+                              style={{
+                  width: isMobile ? '52px' : '48px',
+                  height: isMobile ? '52px' : '48px',
+                  borderRadius: '50%',
+                  backgroundColor: showChat ? '#1976D2' : 'rgba(255, 255, 255, 0.1)',
+                border: `2px solid ${showChat ? '#1976D2' : 'rgba(255, 255, 255, 0.2)'}`,
+                color: 'white',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                outline: 'none',
+                transform: 'scale(1)',
+                position: 'relative'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'scale(1.05)';
+                e.currentTarget.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.2)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'scale(1)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+              }}
+              title="Toggle chat"
+            >
+              <svg width={isMobile ? "24" : "28"} height={isMobile ? "24" : "28"} viewBox="0 0 24 24" fill="currentColor">
+                <path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/>
+              </svg>
+              {messages.length > 0 && !showChat && (
+                <div style={{
+                  position: 'absolute',
+                  top: '-4px',
+                  right: '-4px',
+                  width: '20px',
+                  height: '20px',
+                  borderRadius: '50%',
+                  backgroundColor: '#EA4335',
+                  fontSize: '11px',
+                  fontWeight: '600',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  {messages.length > 9 ? '9+' : messages.length}
+                </div>
+              )}
+            </button>
+
+            {/* More Options */}
+            <button 
+              onClick={() => setShowWhiteboard(!showWhiteboard)}
+              style={{
+                width: isMobile ? '52px' : '60px',
+                height: isMobile ? '52px' : '60px',
+                borderRadius: '50%',
+                backgroundColor: showWhiteboard ? '#8E24AA' : 'rgba(255, 255, 255, 0.1)',
+                border: `2px solid ${showWhiteboard ? '#8E24AA' : 'rgba(255, 255, 255, 0.2)'}`,
+                color: 'white',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                outline: 'none',
+                transform: 'scale(1)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'scale(1.05)';
+                e.currentTarget.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.2)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'scale(1)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+              }}
+              title={showWhiteboard ? 'Hide whiteboard' : 'Open whiteboard'}
+            >
+              <svg width={isMobile ? "24" : "28"} height={isMobile ? "24" : "28"} viewBox="0 0 24 24" fill="currentColor">
+                <path d="M22 5v2h-3v3h-2V7h-3V5h3V2h2v3h3zM6 7h9v2H6V7zm0 4h9v2H6v-2zm0 4h6v2H6v-2zm10-1.5V14h3v-2h-3v-.5zM4 2H2v18l4-4h14c1.1 0 2-.9 2-2V5h-2v9H6.17L4 16.17V2z"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Connection Status */}
+        <div style={{
+          position: 'absolute',
+          top: '8px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          fontSize: '12px',
+          color: 'rgba(255, 255, 255, 0.7)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px'
+        }}>
+          <div style={{
+            width: '8px',
+            height: '8px',
             borderRadius: '50%',
-            backgroundColor: '#3C4043',
-            color: 'white',
-            border: 'none',
-            cursor: 'pointer',
-            fontSize: isMobile ? '20px' : '24px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            transition: 'all 0.2s ease',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
-          }}
-          title="More options"
-        >
-          ⋯
-        </button>
+            backgroundColor: isConnected ? '#0F9D58' : '#EA4335'
+          }} />
+          {connectionStatus}
+        </div>
       </div>
+
+      {/* Profile Modal */}
+      {showProfile && (
+        <ProfilePage 
+          user={user}
+          userName={userName}
+          sessionStartTime={sessionStartTime}
+          officeId={officeId || 'default'}
+          isOwner={isOwner}
+          onClose={() => setShowProfile(false)}
+          isMobile={isMobile}
+        />
+      )}
 
       {/* Office Dashboard Modal */}
       {showDashboard && (
@@ -1949,6 +2185,405 @@ const OfficeDashboard = ({ officeId, onClose, currentRoomId, isMobile }: {
           to { transform: rotate(360deg); }
         }
       `}</style>
+    </div>
+  );
+};
+
+// Profile Page Component
+const ProfilePage = ({ user, userName, sessionStartTime, officeId, isOwner, onClose, isMobile }: {
+  user: any;
+  userName: string;
+  sessionStartTime: Date;
+  officeId: string;
+  isOwner: boolean;
+  onClose: () => void;
+  isMobile: boolean;
+}) => {
+  const [activeTime, setActiveTime] = useState(0);
+  const [employeeStats, setEmployeeStats] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  // Calculate active time
+  useEffect(() => {
+    const updateActiveTime = () => {
+      const now = new Date();
+      const diffMs = now.getTime() - sessionStartTime.getTime();
+      const diffMinutes = Math.floor(diffMs / (1000 * 60));
+      setActiveTime(diffMinutes);
+    };
+
+    updateActiveTime();
+    const interval = setInterval(updateActiveTime, 60000); // Update every minute
+    return () => clearInterval(interval);
+  }, [sessionStartTime]);
+
+  // Fetch employee stats for admin
+  useEffect(() => {
+    if (isOwner) {
+      const fetchEmployeeStats = async () => {
+        setLoading(true);
+        try {
+          const baseUrl = process.env.NEXT_PUBLIC_BACKEND_WS_URL || 'http://localhost:8000';
+          const wsUrl = baseUrl.replace('wss:', 'https:').replace('ws:', 'http:');
+          
+          const response = await fetch(`${wsUrl}/offices/${officeId}/employee-stats`);
+          if (response.ok) {
+            const data = await response.json();
+            setEmployeeStats(data.employees || []);
+          }
+        } catch (error) {
+          console.error('Failed to fetch employee stats:', error);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      fetchEmployeeStats();
+    }
+  }, [isOwner, officeId]);
+
+  const formatTime = (minutes: number) => {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    if (hours > 0) {
+      return `${hours}h ${mins}m`;
+    }
+    return `${mins}m`;
+  };
+
+  const formatDate = (date: string | Date) => {
+    return new Date(date).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 1000,
+      padding: isMobile ? '20px' : '40px'
+    }}>
+      <div style={{
+        backgroundColor: '#1F1F1F',
+        borderRadius: '16px',
+        padding: isMobile ? '24px' : '32px',
+        maxWidth: isMobile ? '100%' : '600px',
+        width: '100%',
+        maxHeight: isMobile ? '100%' : '80vh',
+        overflowY: 'auto',
+        color: 'white',
+        fontFamily: '"Google Sans", Roboto, Arial, sans-serif'
+      }}>
+        {/* Header */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '24px',
+          paddingBottom: '16px',
+          borderBottom: '1px solid #333'
+        }}>
+          <h2 style={{
+            fontSize: isMobile ? '20px' : '24px',
+            fontWeight: '600',
+            margin: 0,
+            color: '#E8EAED'
+          }}>
+            Profile
+          </h2>
+          <button
+            onClick={onClose}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'white',
+              fontSize: '24px',
+              cursor: 'pointer',
+              padding: '4px'
+            }}
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* User Info Section */}
+        <div style={{
+          backgroundColor: '#2A2A2A',
+          borderRadius: '12px',
+          padding: '20px',
+          marginBottom: '20px'
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '16px',
+            marginBottom: '16px'
+          }}>
+            <div style={{
+              width: '60px',
+              height: '60px',
+              borderRadius: '50%',
+              backgroundColor: '#4285F4',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '24px',
+              fontWeight: '600',
+              color: 'white'
+            }}>
+              {userName.charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <h3 style={{
+                fontSize: '18px',
+                fontWeight: '600',
+                margin: '0 0 4px 0',
+                color: '#E8EAED'
+              }}>
+                {userName}
+              </h3>
+              <p style={{
+                fontSize: '14px',
+                color: '#9AA0A6',
+                margin: 0
+              }}>
+                {user?.email}
+              </p>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                marginTop: '8px'
+              }}>
+                <span style={{
+                  padding: '2px 8px',
+                  backgroundColor: isOwner ? '#6B46C1' : '#0F9D58',
+                  color: 'white',
+                  borderRadius: '8px',
+                  fontSize: '10px',
+                  fontWeight: '600'
+                }}>
+                  {isOwner ? 'OWNER' : 'MEMBER'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Activity Stats */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
+            gap: '12px'
+          }}>
+            <div style={{
+              padding: '12px',
+              backgroundColor: '#0F9D58',
+              borderRadius: '8px',
+              textAlign: 'center'
+            }}>
+              <div style={{
+                fontSize: '20px',
+                fontWeight: '700',
+                color: 'white'
+              }}>
+                {formatTime(activeTime)}
+              </div>
+              <div style={{
+                fontSize: '11px',
+                color: 'rgba(255,255,255,0.9)'
+              }}>
+                Active Today
+              </div>
+            </div>
+            <div style={{
+              padding: '12px',
+              backgroundColor: '#1976D2',
+              borderRadius: '8px',
+              textAlign: 'center'
+            }}>
+              <div style={{
+                fontSize: '20px',
+                fontWeight: '700',
+                color: 'white'
+              }}>
+                {formatDate(new Date())}
+              </div>
+              <div style={{
+                fontSize: '11px',
+                color: 'rgba(255,255,255,0.9)'
+              }}>
+                Session Started
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Office Info */}
+        <div style={{
+          backgroundColor: '#2A2A2A',
+          borderRadius: '12px',
+          padding: '20px',
+          marginBottom: isOwner ? '20px' : '0'
+        }}>
+          <h4 style={{
+            fontSize: '16px',
+            fontWeight: '600',
+            margin: '0 0 12px 0',
+            color: '#E8EAED'
+          }}>
+            Office Information
+          </h4>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '12px 0',
+            borderBottom: '1px solid #444'
+          }}>
+            <span style={{ color: '#9AA0A6' }}>Office ID</span>
+            <span style={{ color: 'white', fontWeight: '500' }}>{officeId}</span>
+          </div>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '12px 0'
+          }}>
+            <span style={{ color: '#9AA0A6' }}>Role</span>
+            <span style={{ color: 'white', fontWeight: '500' }}>
+              {isOwner ? 'Office Owner' : 'Team Member'}
+            </span>
+          </div>
+        </div>
+
+        {/* Employee Stats Section (Admin Only) */}
+        {isOwner && (
+          <div style={{
+            backgroundColor: '#2A2A2A',
+            borderRadius: '12px',
+            padding: '20px'
+          }}>
+            <h4 style={{
+              fontSize: '16px',
+              fontWeight: '600',
+              margin: '0 0 16px 0',
+              color: '#E8EAED'
+            }}>
+              Employee Activity
+            </h4>
+            
+            {loading ? (
+              <div style={{
+                textAlign: 'center',
+                padding: '20px',
+                color: '#9AA0A6'
+              }}>
+                <div style={{
+                  width: '32px',
+                  height: '32px',
+                  border: '3px solid rgba(255,255,255,0.2)',
+                  borderTop: '3px solid #0F9D58',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite',
+                  margin: '0 auto 12px'
+                }} />
+                Loading employee data...
+              </div>
+            ) : employeeStats.length > 0 ? (
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px'
+              }}>
+                {employeeStats.map((employee: any, index: number) => (
+                  <div
+                    key={index}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '12px',
+                      backgroundColor: '#3A3A3A',
+                      borderRadius: '8px'
+                    }}
+                  >
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px'
+                    }}>
+                      <div style={{
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '50%',
+                        backgroundColor: '#4285F4',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        color: 'white'
+                      }}>
+                        {employee.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <div style={{
+                          fontSize: '14px',
+                          fontWeight: '500',
+                          color: 'white'
+                        }}>
+                          {employee.name}
+                        </div>
+                        <div style={{
+                          fontSize: '12px',
+                          color: '#9AA0A6'
+                        }}>
+                          {employee.email}
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{
+                      textAlign: 'right'
+                    }}>
+                      <div style={{
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        color: '#0F9D58'
+                      }}>
+                        {formatTime(employee.activeMinutes || 0)}
+                      </div>
+                      <div style={{
+                        fontSize: '11px',
+                        color: '#9AA0A6'
+                      }}>
+                        Active time
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{
+                textAlign: 'center',
+                padding: '20px',
+                color: '#9AA0A6'
+              }}>
+                No employee data available
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
