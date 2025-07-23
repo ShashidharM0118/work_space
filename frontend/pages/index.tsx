@@ -408,6 +408,7 @@ export default function Home() {
   const [showInvitations, setShowInvitations] = useState(false);
   const [sentInvitations, setSentInvitations] = useState<any[]>([]);
   const [showSentInvitations, setShowSentInvitations] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
 
   // Invitation state
   const [inviteEmail, setInviteEmail] = useState('');
@@ -996,69 +997,72 @@ export default function Home() {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '16px',
-              padding: '12px 20px',
-              backgroundColor: 'rgba(255,255,255,0.1)',
-              borderRadius: '32px',
-              backdropFilter: 'blur(16px)',
-              border: '1px solid rgba(255,255,255,0.2)'
-            }}>
-              <img
-                src={user.photoURL || ''}
-                alt={user.displayName || ''}
-                style={{
-                  width: '36px',
-                  height: '36px',
-                  borderRadius: '50%',
-                  objectFit: 'cover',
-                  border: '2px solid rgba(255,255,255,0.3)'
-                }}
-              />
-              <div style={{ display: window.innerWidth > 640 ? 'block' : 'none' }}>
-                <div style={{
-                  color: 'white',
-                  fontSize: '14px',
-                  fontWeight: '600'
-                }}>
-                  {user.displayName}
-                </div>
-                <div style={{
-                  color: 'rgba(255,255,255,0.7)',
-                  fontSize: '12px',
-                  fontWeight: '500'
-                }}>
-                  {userRooms ? `${userRooms.totalRoomsJoined} rooms joined` : 'Loading...'}
-                </div>
-              </div>
-            </div>
-
+            {/* Google Profile Image Button */}
             <button
-              onClick={signOut}
+              onClick={() => setShowProfile(true)}
               style={{
-                padding: '12px 20px',
-                backgroundColor: 'rgba(255,255,255,0.1)',
-                color: 'white',
-                border: '1px solid rgba(255,255,255,0.2)',
-                borderRadius: '24px',
+                width: '52px',
+                height: '52px',
+                borderRadius: '50%',
+                backgroundColor: 'transparent',
+                border: '3px solid rgba(255,255,255,0.3)',
                 cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: '600',
-                transition: 'all 0.3s ease',
-                backdropFilter: 'blur(16px)'
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                position: 'relative',
+                overflow: 'hidden',
+                padding: '0'
               }}
               onMouseOver={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)';
-                e.currentTarget.style.transform = 'translateY(-1px)';
+                e.currentTarget.style.transform = 'scale(1.05)';
+                e.currentTarget.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.2)';
+                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.5)';
               }}
               onMouseOut={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
-                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.transform = 'scale(1)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)';
               }}
+              title="View Profile"
             >
-              Sign Out
+              <img
+                src={user.photoURL || ''}
+                alt={user.displayName || 'Profile'}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  borderRadius: '50%',
+                  objectFit: 'cover'
+                }}
+                onError={(e) => {
+                  // Fallback to user initial if image fails to load
+                  e.currentTarget.style.display = 'none';
+                  const fallbackDiv = e.currentTarget.nextElementSibling as HTMLElement;
+                  if (fallbackDiv) {
+                    fallbackDiv.style.display = 'flex';
+                  }
+                }}
+              />
+              <div style={{
+                position: 'absolute',
+                top: '0',
+                left: '0',
+                width: '100%',
+                height: '100%',
+                borderRadius: '50%',
+                backgroundColor: '#4285F4',
+                display: 'none',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '20px',
+                fontWeight: '700',
+                color: 'white'
+              }}>
+                {user.displayName?.charAt(0)?.toUpperCase() || 'U'}
+              </div>
             </button>
           </div>
         </header>
@@ -2368,6 +2372,496 @@ export default function Home() {
                     ))}
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Profile Modal */}
+        {showProfile && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            backdropFilter: 'blur(10px)',
+            padding: '20px'
+          }}>
+            <div style={{
+              width: '100%',
+              maxWidth: '500px',
+              maxHeight: '80vh',
+              backgroundColor: '#1F1F1F',
+              borderRadius: '24px',
+              border: '1px solid #333',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column'
+            }}>
+              {/* Header */}
+              <div style={{
+                padding: '32px 32px 24px 32px',
+                borderBottom: '1px solid #333',
+                textAlign: 'center'
+              }}>
+                <div style={{
+                  width: '80px',
+                  height: '80px',
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #0052CC 0%, #0065FF 100%)',
+                  margin: '0 auto 16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '36px',
+                  fontWeight: '700',
+                  color: 'white',
+                  boxShadow: '0 8px 24px rgba(0, 82, 204, 0.3)'
+                }}>
+                  {user.displayName?.charAt(0)?.toUpperCase() || 'U'}
+                </div>
+                <h2 style={{
+                  fontSize: '24px',
+                  fontWeight: '700',
+                  color: 'white',
+                  margin: '0 0 8px 0'
+                }}>
+                  {user.displayName || 'User Profile'}
+                </h2>
+                <p style={{
+                  fontSize: '14px',
+                  color: 'rgba(255,255,255,0.6)',
+                  margin: 0
+                }}>
+                  Professional Account
+                </p>
+              </div>
+
+              {/* Content */}
+              <div style={{
+                flex: 1,
+                padding: '24px 32px',
+                overflowY: 'auto'
+              }}>
+                {/* User Information */}
+                <div style={{
+                  marginBottom: '32px'
+                }}>
+                  <h3 style={{
+                    fontSize: '18px',
+                    fontWeight: '600',
+                    color: 'white',
+                    margin: '0 0 16px 0'
+                  }}>
+                    Account Information
+                  </h3>
+                  
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px'
+                  }}>
+                    <div style={{
+                      padding: '16px',
+                      backgroundColor: 'rgba(255,255,255,0.05)',
+                      borderRadius: '12px',
+                      border: '1px solid rgba(255,255,255,0.1)'
+                    }}>
+                      <div style={{
+                        fontSize: '12px',
+                        color: 'rgba(255,255,255,0.6)',
+                        marginBottom: '4px',
+                        fontWeight: '500'
+                      }}>
+                        Email Address
+                      </div>
+                      <div style={{
+                        fontSize: '14px',
+                        color: 'white',
+                        fontWeight: '500'
+                      }}>
+                        {user.email}
+                      </div>
+                    </div>
+
+                    <div style={{
+                      padding: '16px',
+                      backgroundColor: 'rgba(255,255,255,0.05)',
+                      borderRadius: '12px',
+                      border: '1px solid rgba(255,255,255,0.1)'
+                    }}>
+                      <div style={{
+                        fontSize: '12px',
+                        color: 'rgba(255,255,255,0.6)',
+                        marginBottom: '4px',
+                        fontWeight: '500'
+                      }}>
+                        User ID
+                      </div>
+                      <div style={{
+                        fontSize: '14px',
+                        color: 'white',
+                        fontWeight: '500',
+                        fontFamily: 'monospace'
+                      }}>
+                        {user.uid}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Activity Statistics */}
+                <div style={{
+                  marginBottom: '32px'
+                }}>
+                  <h3 style={{
+                    fontSize: '18px',
+                    fontWeight: '600',
+                    color: 'white',
+                    margin: '0 0 16px 0'
+                  }}>
+                    Activity Overview
+                  </h3>
+                  
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+                    gap: '12px'
+                  }}>
+                    <div style={{
+                      padding: '16px',
+                      backgroundColor: 'rgba(15, 157, 88, 0.1)',
+                      borderRadius: '12px',
+                      border: '1px solid rgba(15, 157, 88, 0.2)',
+                      textAlign: 'center'
+                    }}>
+                      <div style={{
+                        fontSize: '24px',
+                        fontWeight: '700',
+                        color: '#0F9D58',
+                        marginBottom: '4px'
+                      }}>
+                        {userRooms?.totalRoomsJoined || 0}
+                      </div>
+                      <div style={{
+                        fontSize: '12px',
+                        color: 'rgba(255,255,255,0.7)',
+                        fontWeight: '500'
+                      }}>
+                        Total Rooms
+                      </div>
+                    </div>
+
+                    <div style={{
+                      padding: '16px',
+                      backgroundColor: 'rgba(0, 82, 204, 0.1)',
+                      borderRadius: '12px',
+                      border: '1px solid rgba(0, 82, 204, 0.2)',
+                      textAlign: 'center'
+                    }}>
+                      <div style={{
+                        fontSize: '24px',
+                        fontWeight: '700',
+                        color: '#0052CC',
+                        marginBottom: '4px'
+                      }}>
+                        {ownedOffices.length}
+                      </div>
+                      <div style={{
+                        fontSize: '12px',
+                        color: 'rgba(255,255,255,0.7)',
+                        fontWeight: '500'
+                      }}>
+                        Owned Offices
+                      </div>
+                    </div>
+
+                    <div style={{
+                      padding: '16px',
+                      backgroundColor: 'rgba(123, 104, 238, 0.1)',
+                      borderRadius: '12px',
+                      border: '1px solid rgba(123, 104, 238, 0.2)',
+                      textAlign: 'center'
+                    }}>
+                      <div style={{
+                        fontSize: '24px',
+                        fontWeight: '700',
+                        color: '#7B68EE',
+                        marginBottom: '4px'
+                      }}>
+                        {memberOffices.length}
+                      </div>
+                      <div style={{
+                        fontSize: '12px',
+                        color: 'rgba(255,255,255,0.7)',
+                        fontWeight: '500'
+                      }}>
+                        Member Of
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Employee Management Section (Only for Office Owners) */}
+                {ownedOffices.length > 0 && (
+                  <div style={{
+                    marginBottom: '32px'
+                  }}>
+                    <h3 style={{
+                      fontSize: '18px',
+                      fontWeight: '600',
+                      color: 'white',
+                      margin: '0 0 16px 0',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}>
+                      <span style={{ fontSize: '20px' }}>👥</span>
+                      Employee Management
+                    </h3>
+                    
+                    <div style={{
+                      backgroundColor: 'rgba(255,255,255,0.05)',
+                      borderRadius: '12px',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      padding: '20px'
+                    }}>
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                        gap: '16px',
+                        marginBottom: '20px'
+                      }}>
+                        <div style={{
+                          padding: '16px',
+                          backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                          borderRadius: '12px',
+                          border: '1px solid rgba(239, 68, 68, 0.2)',
+                          textAlign: 'center'
+                        }}>
+                          <div style={{
+                            fontSize: '24px',
+                            fontWeight: '700',
+                            color: '#EF4444',
+                            marginBottom: '4px'
+                          }}>
+                            12
+                          </div>
+                          <div style={{
+                            fontSize: '12px',
+                            color: 'rgba(255,255,255,0.7)',
+                            fontWeight: '500'
+                          }}>
+                            Total Employees
+                          </div>
+                        </div>
+
+                        <div style={{
+                          padding: '16px',
+                          backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                          borderRadius: '12px',
+                          border: '1px solid rgba(34, 197, 94, 0.2)',
+                          textAlign: 'center'
+                        }}>
+                          <div style={{
+                            fontSize: '24px',
+                            fontWeight: '700',
+                            color: '#22C55E',
+                            marginBottom: '4px'
+                          }}>
+                            8
+                          </div>
+                          <div style={{
+                            fontSize: '12px',
+                            color: 'rgba(255,255,255,0.7)',
+                            fontWeight: '500'
+                          }}>
+                            Active Now
+                          </div>
+                        </div>
+
+                        <div style={{
+                          padding: '16px',
+                          backgroundColor: 'rgba(168, 85, 247, 0.1)',
+                          borderRadius: '12px',
+                          border: '1px solid rgba(168, 85, 247, 0.2)',
+                          textAlign: 'center'
+                        }}>
+                          <div style={{
+                            fontSize: '24px',
+                            fontWeight: '700',
+                            color: '#A855F7',
+                            marginBottom: '4px'
+                          }}>
+                            47.2h
+                          </div>
+                          <div style={{
+                            fontSize: '12px',
+                            color: 'rgba(255,255,255,0.7)',
+                            fontWeight: '500'
+                          }}>
+                            Avg Weekly Hours
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Top Performers */}
+                      <div style={{
+                        borderTop: '1px solid rgba(255,255,255,0.1)',
+                        paddingTop: '16px'
+                      }}>
+                        <h4 style={{
+                          fontSize: '14px',
+                          fontWeight: '600',
+                          color: 'rgba(255,255,255,0.9)',
+                          margin: '0 0 12px 0'
+                        }}>
+                          Top Active Employees This Week
+                        </h4>
+                        
+                        <div style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '8px'
+                        }}>
+                          {[
+                            { name: 'Sarah Chen', hours: '52.3h', department: 'Frontend', avatar: '👩‍💻' },
+                            { name: 'Mike Johnson', hours: '48.7h', department: 'Backend', avatar: '👨‍💼' },
+                            { name: 'Emily Davis', hours: '45.1h', department: 'Design', avatar: '👩‍🎨' },
+                            { name: 'Alex Kumar', hours: '43.8h', department: 'DevOps', avatar: '👨‍🔧' }
+                          ].map((employee, index) => (
+                            <div
+                              key={employee.name}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                padding: '12px 16px',
+                                backgroundColor: 'rgba(255,255,255,0.05)',
+                                borderRadius: '8px',
+                                border: '1px solid rgba(255,255,255,0.08)'
+                              }}
+                            >
+                              <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '12px'
+                              }}>
+                                <div style={{
+                                  width: '32px',
+                                  height: '32px',
+                                  borderRadius: '50%',
+                                  backgroundColor: index === 0 ? '#FFD700' : index === 1 ? '#C0C0C0' : index === 2 ? '#CD7F32' : '#6B7280',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: '16px'
+                                }}>
+                                  {employee.avatar}
+                                </div>
+                                <div>
+                                  <div style={{
+                                    fontSize: '14px',
+                                    fontWeight: '600',
+                                    color: 'white'
+                                  }}>
+                                    {employee.name}
+                                  </div>
+                                  <div style={{
+                                    fontSize: '12px',
+                                    color: 'rgba(255,255,255,0.6)'
+                                  }}>
+                                    {employee.department}
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px'
+                              }}>
+                                <div style={{
+                                  padding: '4px 8px',
+                                  backgroundColor: index === 0 ? 'rgba(34, 197, 94, 0.2)' : 'rgba(168, 85, 247, 0.2)',
+                                  borderRadius: '12px',
+                                  fontSize: '12px',
+                                  fontWeight: '600',
+                                  color: index === 0 ? '#22C55E' : '#A855F7'
+                                }}>
+                                  {employee.hours}
+                                </div>
+                                {index === 0 && (
+                                  <span style={{ fontSize: '16px' }}>🏆</span>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Account Actions */}
+                <div style={{
+                  display: 'flex',
+                  gap: '12px',
+                  justifyContent: 'center'
+                }}>
+                  <button
+                    onClick={() => setShowProfile(false)}
+                    style={{
+                      flex: 1,
+                      padding: '14px 24px',
+                      backgroundColor: 'rgba(255,255,255,0.1)',
+                      color: 'white',
+                      border: '1px solid rgba(255,255,255,0.2)',
+                      borderRadius: '12px',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.3s ease'
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)';
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
+                    }}
+                  >
+                    Close
+                  </button>
+                  <button
+                    onClick={signOut}
+                    style={{
+                      flex: 1,
+                      padding: '14px 24px',
+                      backgroundColor: '#DC2626',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '12px',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.3s ease'
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.backgroundColor = '#B91C1C';
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.backgroundColor = '#DC2626';
+                    }}
+                  >
+                    Sign Out
+                  </button>
+                </div>
               </div>
             </div>
           </div>

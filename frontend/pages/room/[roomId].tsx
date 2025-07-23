@@ -1114,25 +1114,7 @@ export default function Room() {
               >
                 🏢 {isMobile ? '' : 'Office'}
               </button>
-              <button
-                onClick={() => setShowDashboard(true)}
-                style={{
-                  padding: isMobile ? '6px 12px' : '8px 16px',
-                  backgroundColor: '#0F9D58',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: isMobile ? '16px' : '20px',
-                  cursor: 'pointer',
-                  fontSize: isMobile ? '12px' : '14px',
-                  fontWeight: '500',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: isMobile ? '4px' : '6px',
-                  marginRight: isMobile ? '4px' : '8px'
-                }}
-              >
-                📊 {isMobile ? '' : 'Dashboard'}
-              </button>
+
             </>
           )}
 
@@ -1512,7 +1494,7 @@ export default function Room() {
           ? 'linear-gradient(180deg, rgba(32, 33, 36, 0) 0%, rgba(32, 33, 36, 0.8) 20%, rgba(32, 33, 36, 0.95) 100%)'
           : 'rgba(32, 33, 36, 0.95)',
         backdropFilter: isMobile ? 'blur(20px)' : 'none',
-        padding: isMobile ? '16px 20px 32px 20px' : '16px 40px',
+        padding: isMobile ? '12px 20px 28px 20px' : '12px 40px 20px 40px',
         zIndex: 100
       }}>
         <div style={{
@@ -1563,7 +1545,7 @@ export default function Room() {
               }}
               title={streamRef.current?.getAudioTracks()[0]?.enabled !== false ? 'Mute microphone (m)' : 'Unmute microphone (m)'}
             >
-              <svg width={isMobile ? "24" : "20"} height={isMobile ? "24" : "20"} viewBox="0 0 24 24" fill="currentColor">
+              <svg width={isMobile ? "24" : "18"} height={isMobile ? "24" : "18"} viewBox="0 0 24 24" fill="currentColor">
                 {streamRef.current?.getAudioTracks()[0]?.enabled !== false ? (
                   <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.49 6-3.31 6-6.72h-1.7z"/>
                 ) : (
@@ -1610,7 +1592,7 @@ export default function Room() {
               }}
               title={streamRef.current?.getVideoTracks()[0]?.enabled !== false ? 'Turn off camera (c)' : 'Turn on camera (c)'}
             >
-              <svg width={isMobile ? "24" : "28"} height={isMobile ? "24" : "28"} viewBox="0 0 24 24" fill="currentColor">
+              <svg width={isMobile ? "24" : "18"} height={isMobile ? "24" : "18"} viewBox="0 0 24 24" fill="currentColor">
                 {streamRef.current?.getVideoTracks()[0]?.enabled !== false ? (
                   <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
                 ) : (
@@ -1649,7 +1631,7 @@ export default function Room() {
             }}
             title="Leave call"
           >
-            <svg width={isMobile ? "26" : "30"} height={isMobile ? "26" : "30"} viewBox="0 0 24 24" fill="currentColor">
+            <svg width={isMobile ? "26" : "20"} height={isMobile ? "26" : "20"} viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08c-.18-.17-.29-.42-.29-.7 0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71 0 .28-.11.53-.29.7l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.1-.7-.28-.79-.73-1.68-1.36-2.66-1.85-.33-.16-.56-.51-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z"/>
             </svg>
           </button>
@@ -1723,7 +1705,7 @@ export default function Room() {
               }}
               title="Toggle chat"
             >
-              <svg width={isMobile ? "24" : "28"} height={isMobile ? "24" : "28"} viewBox="0 0 24 24" fill="currentColor">
+              <svg width={isMobile ? "24" : "18"} height={isMobile ? "24" : "18"} viewBox="0 0 24 24" fill="currentColor">
                 <path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/>
               </svg>
               {messages.length > 0 && !showChat && (
@@ -1750,8 +1732,8 @@ export default function Room() {
             <button 
               onClick={() => setShowWhiteboard(!showWhiteboard)}
               style={{
-                width: isMobile ? '52px' : '60px',
-                height: isMobile ? '52px' : '60px',
+                width: isMobile ? '52px' : '48px',
+                height: isMobile ? '52px' : '48px',
                 borderRadius: '50%',
                 backgroundColor: showWhiteboard ? '#8E24AA' : 'rgba(255, 255, 255, 0.1)',
                 border: `2px solid ${showWhiteboard ? '#8E24AA' : 'rgba(255, 255, 255, 0.2)'}`,
@@ -1775,7 +1757,7 @@ export default function Room() {
               }}
               title={showWhiteboard ? 'Hide whiteboard' : 'Open whiteboard'}
             >
-              <svg width={isMobile ? "24" : "28"} height={isMobile ? "24" : "28"} viewBox="0 0 24 24" fill="currentColor">
+              <svg width={isMobile ? "24" : "18"} height={isMobile ? "24" : "18"} viewBox="0 0 24 24" fill="currentColor">
                 <path d="M22 5v2h-3v3h-2V7h-3V5h3V2h2v3h3zM6 7h9v2H6V7zm0 4h9v2H6v-2zm0 4h6v2H6v-2zm10-1.5V14h3v-2h-3v-.5zM4 2H2v18l4-4h14c1.1 0 2-.9 2-2V5h-2v9H6.17L4 16.17V2z"/>
               </svg>
             </button>

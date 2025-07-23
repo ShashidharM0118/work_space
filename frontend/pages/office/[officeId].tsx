@@ -432,9 +432,9 @@ export default function Office() {
     top: `${room.position.y}%`,
     width: `${room.size.width}%`,
     height: `${room.size.height}%`,
-    backgroundColor: hoveredRoom === room.id ? room.color : `${room.color}08`,
-    border: `2px solid ${room.color}`,
-    borderRadius: '16px',
+    backgroundColor: hoveredRoom === room.id ? '#FFFFFF' : '#F8FAFC',
+    border: `2px solid ${hoveredRoom === room.id ? room.color : '#E2E8F0'}`,
+    borderRadius: '12px',
     cursor: 'pointer',
     transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
     transform: hoveredRoom === room.id ? 'scale(1.02) translateY(-2px)' : 'scale(1)',
@@ -443,12 +443,8 @@ export default function Office() {
     alignItems: 'center',
     justifyContent: 'center',
     boxShadow: hoveredRoom === room.id 
-      ? `0 25px 50px -12px ${room.color}40, 0 8px 16px -8px ${room.color}20`
-      : `0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)`,
-    backdropFilter: 'blur(16px)',
-    background: hoveredRoom === room.id 
-      ? `linear-gradient(135deg, ${room.color}20, ${room.color}10)`
-      : `linear-gradient(135deg, rgba(255,255,255,0.9), rgba(255,255,255,0.6))`,
+      ? `0 8px 25px -5px ${room.color}40, 0 4px 10px -3px ${room.color}20`
+      : `0 2px 8px -2px rgba(0, 0, 0, 0.1), 0 1px 4px -1px rgba(0, 0, 0, 0.06)`,
   });
 
   if (loading) {
@@ -716,9 +712,9 @@ export default function Office() {
           </div>
         </header>
 
-        {/* Office Layout */}
+        {/* Professional Office Layout */}
         <div style={{
-          padding: isMobile ? '20px' : '40px 32px',
+          padding: isMobile ? '16px' : '32px',
           display: 'flex',
           justifyContent: 'center'
         }}>
@@ -728,14 +724,13 @@ export default function Office() {
             maxWidth: '1400px',
             height: isMobile ? '60vh' : '75vh',
             minHeight: '500px',
-            background: 'linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%)',
-            borderRadius: '32px',
-            border: '1px solid rgba(255,255,255,0.2)',
-            backdropFilter: 'blur(20px)',
-            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
+            background: 'linear-gradient(135deg, #F8FAFC 0%, #E2E8F0 100%)',
+            borderRadius: '16px',
+            border: '2px solid #CBD5E1',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
             overflow: 'hidden'
           }}>
-            {/* Premium grid pattern */}
+            {/* Professional grid pattern */}
             <div style={{
               position: 'absolute',
               top: 0,
@@ -743,11 +738,11 @@ export default function Office() {
               right: 0,
               bottom: 0,
               backgroundImage: `
-                linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)
+                linear-gradient(#E2E8F0 1px, transparent 1px),
+                linear-gradient(90deg, #E2E8F0 1px, transparent 1px)
               `,
-              backgroundSize: '50px 50px',
-              opacity: 0.4
+              backgroundSize: '40px 40px',
+              opacity: 0.5
             }} />
 
             {/* Rooms */}
@@ -760,43 +755,50 @@ export default function Office() {
                 onClick={() => handleRoomClick(room.id)}
               >
                 <div style={{
-                  fontSize: 'clamp(2.5rem, 5vw, 3.5rem)',
-                  marginBottom: '1rem',
-                  filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.1))'
+                  width: '48px',
+                  height: '48px',
+                  borderRadius: '12px',
+                  backgroundColor: room.color,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '24px',
+                  marginBottom: '12px',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
                 }}>
                   {room.icon}
                 </div>
                 <h3 style={{
-                  color: hoveredRoom === room.id ? 'white' : '#0F172A',
-                  margin: '0 0 0.5rem 0',
-                  fontSize: 'clamp(1rem, 2.5vw, 1.3rem)',
-                  fontWeight: '800',
+                  color: hoveredRoom === room.id ? room.color : '#1E293B',
+                  margin: '0 0 6px 0',
+                  fontSize: 'clamp(1rem, 2.5vw, 1.2rem)',
+                  fontWeight: '700',
                   textAlign: 'center',
-                  textShadow: hoveredRoom === room.id ? '0 2px 4px rgba(0,0,0,0.3)' : 'none'
+                  letterSpacing: '-0.025em'
                 }}>
                   {room.name}
                 </h3>
                 <p style={{
-                  color: hoveredRoom === room.id ? 'rgba(255,255,255,0.9)' : '#64748B',
-                  margin: '0 0 0.75rem 0',
-                  fontSize: 'clamp(0.8rem, 1.8vw, 0.95rem)',
+                  color: hoveredRoom === room.id ? '#64748B' : '#64748B',
+                  margin: '0 0 12px 0',
+                  fontSize: 'clamp(0.75rem, 1.5vw, 0.875rem)',
                   textAlign: 'center',
-                  fontWeight: '600',
-                  padding: '0 12px',
-                  lineHeight: '1.4'
+                  fontWeight: '500',
+                  padding: '0 8px',
+                  lineHeight: '1.3'
                 }}>
                   {room.description}
                 </p>
                 <div style={{
-                  padding: '8px 16px',
-                  backgroundColor: hoveredRoom === room.id ? 'rgba(255,255,255,0.25)' : room.color,
-                  color: 'white',
-                  borderRadius: '20px',
-                  fontSize: 'clamp(0.7rem, 1.4vw, 0.85rem)',
-                  fontWeight: '700',
-                  boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
+                  padding: '6px 12px',
+                  backgroundColor: hoveredRoom === room.id ? room.color : '#F1F5F9',
+                  color: hoveredRoom === room.id ? 'white' : '#475569',
+                  borderRadius: '16px',
+                  fontSize: 'clamp(0.7rem, 1.2vw, 0.8rem)',
+                  fontWeight: '600',
+                  border: `1px solid ${hoveredRoom === room.id ? room.color : '#E2E8F0'}`
                 }}>
-                  {room.participants}/{room.maxParticipants} members
+                  {room.participants}/{room.maxParticipants} participants
                 </div>
               </div>
             ))}
@@ -807,32 +809,35 @@ export default function Office() {
                 onClick={() => setShowAddRoom(true)}
                 style={{
                   position: 'absolute',
-                  bottom: '24px',
-                  right: '24px',
-                  width: '60px',
-                  height: '60px',
-                  background: 'linear-gradient(135deg, #0052CC 0%, #0065FF 100%)',
+                  bottom: '20px',
+                  right: '20px',
+                  padding: '12px 20px',
+                  background: '#0052CC',
                   color: 'white',
                   border: 'none',
-                  borderRadius: '50%',
+                  borderRadius: '8px',
                   cursor: 'pointer',
-                  fontSize: '24px',
+                  fontSize: '14px',
+                  fontWeight: '600',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: '0 10px 25px -5px rgba(0, 82, 204, 0.4)',
+                  gap: '8px',
+                  boxShadow: '0 2px 8px rgba(0, 82, 204, 0.3)',
                   transition: 'all 0.3s ease'
                 }}
                 onMouseOver={(e) => {
-                  e.currentTarget.style.transform = 'scale(1.1)';
-                  e.currentTarget.style.boxShadow = '0 15px 35px -5px rgba(0, 82, 204, 0.6)';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 82, 204, 0.4)';
                 }}
                 onMouseOut={(e) => {
-                  e.currentTarget.style.transform = 'scale(1)';
-                  e.currentTarget.style.boxShadow = '0 10px 25px -5px rgba(0, 82, 204, 0.4)';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 82, 204, 0.3)';
                 }}
               >
-                ➕
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                </svg>
+                Add Room
               </button>
             )}
           </div>
@@ -1460,6 +1465,398 @@ export default function Office() {
                 )}
               </div>
             </div>
+
+            {/* Office Settings Modal */}
+            {showSettings && (
+              <div style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: 'rgba(0,0,0,0.8)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 1000,
+                backdropFilter: 'blur(10px)',
+                padding: '20px'
+              }}>
+                <div style={{
+                  width: '100%',
+                  maxWidth: '600px',
+                  maxHeight: '80vh',
+                  backgroundColor: 'white',
+                  borderRadius: '24px',
+                  overflow: 'hidden',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)'
+                }}>
+                  {/* Header */}
+                  <div style={{
+                    padding: '32px 32px 24px 32px',
+                    borderBottom: '1px solid #E2E8F0',
+                    textAlign: 'center'
+                  }}>
+                    <div style={{
+                      width: '64px',
+                      height: '64px',
+                      borderRadius: '50%',
+                      background: 'linear-gradient(135deg, #0052CC 0%, #0065FF 100%)',
+                      margin: '0 auto 16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '28px',
+                      color: 'white',
+                      boxShadow: '0 8px 24px rgba(0, 82, 204, 0.3)'
+                    }}>
+                      ⚙️
+                    </div>
+                    <h2 style={{
+                      fontSize: '24px',
+                      fontWeight: '700',
+                      color: '#1E293B',
+                      margin: '0 0 8px 0'
+                    }}>
+                      Office Settings
+                    </h2>
+                    <p style={{
+                      fontSize: '14px',
+                      color: '#64748B',
+                      margin: 0
+                    }}>
+                      Configure your office preferences and permissions
+                    </p>
+                  </div>
+
+                  {/* Content */}
+                  <div style={{
+                    flex: 1,
+                    padding: '24px 32px',
+                    overflowY: 'auto'
+                  }}>
+                    {/* Basic Settings */}
+                    <div style={{
+                      marginBottom: '32px'
+                    }}>
+                      <h3 style={{
+                        fontSize: '18px',
+                        fontWeight: '600',
+                        color: '#1E293B',
+                        margin: '0 0 16px 0'
+                      }}>
+                        Basic Information
+                      </h3>
+                      
+                      <div style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '16px'
+                      }}>
+                        <div>
+                          <label style={{
+                            display: 'block',
+                            fontSize: '14px',
+                            fontWeight: '600',
+                            color: '#374151',
+                            marginBottom: '8px'
+                          }}>
+                            Office Name
+                          </label>
+                          <input
+                            type="text"
+                            value={officeSettings.name}
+                            onChange={(e) => setOfficeSettings(prev => ({ ...prev, name: e.target.value }))}
+                            style={{
+                              width: '100%',
+                              padding: '12px 16px',
+                              border: '2px solid #E2E8F0',
+                              borderRadius: '8px',
+                              fontSize: '14px',
+                              outline: 'none',
+                              transition: 'border-color 0.3s ease',
+                              boxSizing: 'border-box'
+                            }}
+                            onFocus={(e) => e.target.style.borderColor = '#0052CC'}
+                            onBlur={(e) => e.target.style.borderColor = '#E2E8F0'}
+                          />
+                        </div>
+
+                        <div>
+                          <label style={{
+                            display: 'block',
+                            fontSize: '14px',
+                            fontWeight: '600',
+                            color: '#374151',
+                            marginBottom: '8px'
+                          }}>
+                            Description
+                          </label>
+                          <textarea
+                            value={officeSettings.description}
+                            onChange={(e) => setOfficeSettings(prev => ({ ...prev, description: e.target.value }))}
+                            rows={3}
+                            style={{
+                              width: '100%',
+                              padding: '12px 16px',
+                              border: '2px solid #E2E8F0',
+                              borderRadius: '8px',
+                              fontSize: '14px',
+                              outline: 'none',
+                              transition: 'border-color 0.3s ease',
+                              boxSizing: 'border-box',
+                              resize: 'none',
+                              fontFamily: 'inherit'
+                            }}
+                            onFocus={(e) => e.target.style.borderColor = '#0052CC'}
+                            onBlur={(e) => e.target.style.borderColor = '#E2E8F0'}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Access Control */}
+                    <div style={{
+                      marginBottom: '32px'
+                    }}>
+                      <h3 style={{
+                        fontSize: '18px',
+                        fontWeight: '600',
+                        color: '#1E293B',
+                        margin: '0 0 16px 0'
+                      }}>
+                        Access Control
+                      </h3>
+                      
+                      <div style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '16px'
+                      }}>
+                        <div style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          padding: '16px',
+                          backgroundColor: '#F8FAFC',
+                          borderRadius: '8px',
+                          border: '1px solid #E2E8F0'
+                        }}>
+                          <div>
+                            <div style={{
+                              fontSize: '14px',
+                              fontWeight: '600',
+                              color: '#1E293B',
+                              marginBottom: '4px'
+                            }}>
+                              Public Office
+                            </div>
+                            <div style={{
+                              fontSize: '12px',
+                              color: '#64748B'
+                            }}>
+                              Allow anyone to discover and join this office
+                            </div>
+                          </div>
+                          <label style={{
+                            position: 'relative',
+                            display: 'inline-block',
+                            width: '44px',
+                            height: '24px'
+                          }}>
+                            <input
+                              type="checkbox"
+                              checked={officeSettings.isPublic}
+                              onChange={(e) => setOfficeSettings(prev => ({ ...prev, isPublic: e.target.checked }))}
+                              style={{ opacity: 0, width: 0, height: 0 }}
+                            />
+                            <span style={{
+                              position: 'absolute',
+                              cursor: 'pointer',
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              bottom: 0,
+                              backgroundColor: officeSettings.isPublic ? '#0052CC' : '#CBD5E1',
+                              borderRadius: '24px',
+                              transition: '0.3s',
+                              transform: 'translateZ(0)'
+                            }}>
+                              <span style={{
+                                position: 'absolute',
+                                content: '',
+                                height: '18px',
+                                width: '18px',
+                                left: officeSettings.isPublic ? '23px' : '3px',
+                                bottom: '3px',
+                                backgroundColor: 'white',
+                                borderRadius: '50%',
+                                transition: '0.3s',
+                                transform: 'translateZ(0)'
+                              }} />
+                            </span>
+                          </label>
+                        </div>
+
+                        <div style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          padding: '16px',
+                          backgroundColor: '#F8FAFC',
+                          borderRadius: '8px',
+                          border: '1px solid #E2E8F0'
+                        }}>
+                          <div>
+                            <div style={{
+                              fontSize: '14px',
+                              fontWeight: '600',
+                              color: '#1E293B',
+                              marginBottom: '4px'
+                            }}>
+                              Require Approval
+                            </div>
+                            <div style={{
+                              fontSize: '12px',
+                              color: '#64748B'
+                            }}>
+                              New members need owner approval to join
+                            </div>
+                          </div>
+                          <label style={{
+                            position: 'relative',
+                            display: 'inline-block',
+                            width: '44px',
+                            height: '24px'
+                          }}>
+                            <input
+                              type="checkbox"
+                              checked={officeSettings.requireApproval}
+                              onChange={(e) => setOfficeSettings(prev => ({ ...prev, requireApproval: e.target.checked }))}
+                              style={{ opacity: 0, width: 0, height: 0 }}
+                            />
+                            <span style={{
+                              position: 'absolute',
+                              cursor: 'pointer',
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              bottom: 0,
+                              backgroundColor: officeSettings.requireApproval ? '#0052CC' : '#CBD5E1',
+                              borderRadius: '24px',
+                              transition: '0.3s',
+                              transform: 'translateZ(0)'
+                            }}>
+                              <span style={{
+                                position: 'absolute',
+                                content: '',
+                                height: '18px',
+                                width: '18px',
+                                left: officeSettings.requireApproval ? '23px' : '3px',
+                                bottom: '3px',
+                                backgroundColor: 'white',
+                                borderRadius: '50%',
+                                transition: '0.3s',
+                                transform: 'translateZ(0)'
+                              }} />
+                            </span>
+                          </label>
+                        </div>
+
+                        <div>
+                          <label style={{
+                            display: 'block',
+                            fontSize: '14px',
+                            fontWeight: '600',
+                            color: '#374151',
+                            marginBottom: '8px'
+                          }}>
+                            Maximum Participants
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="200"
+                            value={officeSettings.maxParticipants}
+                            onChange={(e) => setOfficeSettings(prev => ({ ...prev, maxParticipants: parseInt(e.target.value) || 50 }))}
+                            style={{
+                              width: '100%',
+                              padding: '12px 16px',
+                              border: '2px solid #E2E8F0',
+                              borderRadius: '8px',
+                              fontSize: '14px',
+                              outline: 'none',
+                              transition: 'border-color 0.3s ease',
+                              boxSizing: 'border-box'
+                            }}
+                            onFocus={(e) => e.target.style.borderColor = '#0052CC'}
+                            onBlur={(e) => e.target.style.borderColor = '#E2E8F0'}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div style={{
+                      display: 'flex',
+                      gap: '12px',
+                      justifyContent: 'flex-end',
+                      borderTop: '1px solid #E2E8F0',
+                      paddingTop: '20px'
+                    }}>
+                      <button
+                        onClick={() => setShowSettings(false)}
+                        style={{
+                          padding: '12px 24px',
+                          backgroundColor: '#F3F4F6',
+                          color: '#374151',
+                          border: 'none',
+                          borderRadius: '8px',
+                          fontSize: '14px',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          transition: 'all 0.3s ease'
+                        }}
+                        onMouseOver={(e) => {
+                          e.currentTarget.style.backgroundColor = '#E5E7EB';
+                        }}
+                        onMouseOut={(e) => {
+                          e.currentTarget.style.backgroundColor = '#F3F4F6';
+                        }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={saveOfficeSettings}
+                        style={{
+                          padding: '12px 24px',
+                          background: 'linear-gradient(135deg, #0052CC 0%, #0065FF 100%)',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '8px',
+                          fontSize: '14px',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          transition: 'all 0.3s ease'
+                        }}
+                        onMouseOver={(e) => {
+                          e.currentTarget.style.transform = 'translateY(-1px)';
+                          e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 82, 204, 0.4)';
+                        }}
+                        onMouseOut={(e) => {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = 'none';
+                        }}
+                      >
+                        Save Changes
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <style jsx>{`
               @keyframes spin {

@@ -292,6 +292,247 @@ export const getMemberOffices = async (userId: string): Promise<string[]> => {
   }
 };
 
+// Activity Tracking System
+export interface UserActivity {
+  userId: string;
+  officeId: string;
+  roomId: string;
+  sessionId: string;
+  startTime: string;
+  endTime?: string;
+  duration?: number; // in minutes
+  date: string; // YYYY-MM-DD format
+  isActive: boolean;
+}
+
+export interface ActivityStats {
+  totalEmployees: number;
+  activeNow: number;
+  avgWeeklyHours: number;
+  topPerformers: {
+    userId: string;
+    name: string;
+    email: string;
+    avatar: string;
+    weeklyHours: number;
+    department: string;
+  }[];
+}
+
+// Start tracking user activity when they join a room
+export const startActivityTracking = async (
+  userId: string, 
+  officeId: string, 
+  roomId: string,
+  userName: string
+): Promise<string> => {
+  try {
+    const sessionId = `${userId}_${Date.now()}`;
+    const now = new Date();
+    const activity: UserActivity = {
+      userId,
+      officeId,
+      roomId,
+      sessionId,
+      startTime: now.toISOString(),
+      date: now.toISOString().split('T')[0], // YYYY-MM-DD
+      isActive: true
+    };
+
+    // Store in userActivity collection
+    await setDoc(doc(db, 'userActivity', sessionId), activity);
+
+    // Update user's current activity status
+    const userStatusRef = doc(db, 'userStatus', userId);
+    await setDoc(userStatusRef, {
+      userId,
+      isActive: true,
+      currentOfficeId: officeId,
+      currentRoomId: roomId,
+      currentSessionId: sessionId,
+      lastActiveAt: now.toISOString(),
+      userName
+    });
+
+    console.log('✅ Activity tracking started for session:', sessionId);
+    return sessionId;
+  } catch (error) {
+    console.error('Error starting activity tracking:', error);
+    throw error;
+  }
+};
+
+// Stop tracking user activity when they leave a room
+export const stopActivityTracking = async (sessionId: string): Promise<number> => {
+  try {
+    const activityRef = doc(db, 'userActivity', sessionId);
+    const activitySnap = await getDoc(activityRef);
+    
+    if (!activitySnap.exists()) {
+      console.warn('Activity session not found:', sessionId);
+      return 0;
+    }
+
+    const activity = activitySnap.data() as UserActivity;
+    const endTime = new Date();
+    const startTime = new Date(activity.startTime);
+    const duration = Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60)); // minutes
+
+    // Update activity record with end time and duration
+    await updateDoc(activityRef, {
+      endTime: endTime.toISOString(),
+      duration,
+      isActive: false
+    });
+
+    // Update user status to inactive
+    const userStatusRef = doc(db, 'userStatus', activity.userId);
+    await updateDoc(userStatusRef, {
+      isActive: false,
+      lastActiveAt: endTime.toISOString(),
+      currentOfficeId: null,
+      currentRoomId: null,
+      currentSessionId: null
+    });
+
+    console.log('✅ Activity tracking stopped. Duration:', duration, 'minutes');
+    return duration;
+  } catch (error) {
+    console.error('Error stopping activity tracking:', error);
+    return 0;
+  }
+};
+
+// Get office activity statistics
+export const getOfficeActivityStats = async (officeId: string): Promise<ActivityStats> => {
+  try {
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    const weekAgoString = oneWeekAgo.toISOString().split('T')[0];
+
+    // Get all users who have been active in this office in the past week
+    const activityQuery = query(
+      collection(db, 'userActivity'),
+      where('officeId', '==', officeId),
+      where('date', '>=', weekAgoString)
+    );
+    
+    const activitySnap = await getDocs(activityQuery);
+    const activities = activitySnap.docs.map(doc => doc.data() as UserActivity);
+
+    // Get currently active users
+    const statusQuery = query(
+      collection(db, 'userStatus'),
+      where('currentOfficeId', '==', officeId),
+      where('isActive', '==', true)
+    );
+    
+    const statusSnap = await getDocs(statusQuery);
+    const activeNow = statusSnap.docs.length;
+
+    // Calculate user stats
+    const userStats = new Map<string, {
+      userId: string;
+      totalMinutes: number;
+      name: string;
+      email: string;
+      avatar: string;
+    }>();
+
+    for (const activity of activities) {
+      if (activity.duration) {
+        const existing = userStats.get(activity.userId) || {
+          userId: activity.userId,
+          totalMinutes: 0,
+          name: '',
+          email: '',
+          avatar: ''
+        };
+        existing.totalMinutes += activity.duration;
+        userStats.set(activity.userId, existing);
+      }
+    }
+
+    // Get user profile data for stats
+    const userIds = Array.from(userStats.keys());
+    const userProfiles = await Promise.all(
+      userIds.map(async (userId) => {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', userId));
+          return userDoc.exists() ? { userId, ...userDoc.data() } : null;
+        } catch {
+          return null;
+        }
+      })
+    );
+
+    // Merge user data with stats
+    userProfiles.forEach(profile => {
+      if (profile) {
+        const stats = userStats.get(profile.userId);
+        if (stats) {
+          stats.name = profile.displayName || profile.email || 'Unknown User';
+          stats.email = profile.email || '';
+          stats.avatar = profile.photoURL || '';
+        }
+      }
+    });
+
+    // Calculate top performers
+    const topPerformers = Array.from(userStats.values())
+      .sort((a, b) => b.totalMinutes - a.totalMinutes)
+      .slice(0, 5)
+      .map(user => ({
+        userId: user.userId,
+        name: user.name,
+        email: user.email,
+        avatar: user.avatar,
+        weeklyHours: Math.round((user.totalMinutes / 60) * 10) / 10,
+        department: 'Team Member' // Could be enhanced with user departments
+      }));
+
+    // Calculate average weekly hours
+    const totalUsers = userStats.size;
+    const totalHours = Array.from(userStats.values()).reduce((sum, user) => sum + user.totalMinutes, 0) / 60;
+    const avgWeeklyHours = totalUsers > 0 ? Math.round((totalHours / totalUsers) * 10) / 10 : 0;
+
+    return {
+      totalEmployees: totalUsers,
+      activeNow,
+      avgWeeklyHours,
+      topPerformers
+    };
+  } catch (error) {
+    console.error('Error getting office activity stats:', error);
+    return {
+      totalEmployees: 0,
+      activeNow: 0,
+      avgWeeklyHours: 0,
+      topPerformers: []
+    };
+  }
+};
+
+// Update user activity heartbeat (call periodically while user is active)
+export const updateActivityHeartbeat = async (sessionId: string): Promise<void> => {
+  try {
+    const activityRef = doc(db, 'userActivity', sessionId);
+    const activitySnap = await getDoc(activityRef);
+    
+    if (activitySnap.exists()) {
+      const activity = activitySnap.data() as UserActivity;
+      
+      // Update user status heartbeat
+      const userStatusRef = doc(db, 'userStatus', activity.userId);
+      await updateDoc(userStatusRef, {
+        lastActiveAt: new Date().toISOString()
+      });
+    }
+  } catch (error) {
+    console.error('Error updating activity heartbeat:', error);
+  }
+};
+
 export const subscribeToUserRooms = (userId: string, callback: (userRooms: UserRooms | null) => void) => {
   const userRoomsRef = doc(db, 'userRooms', userId);
   

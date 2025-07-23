@@ -46,10 +46,16 @@ service cloud.firestore {
       allow read, write: if request.auth != null;
     }
 
-    // User activity logs - track recent rooms
-    match /userActivity/{userId} {
+    // User activity logs - track recent rooms and time
+    match /userActivity/{sessionId} {
       allow read: if request.auth != null;
-      allow write: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null;
+    }
+
+    // User status - track current activity status
+    match /userStatus/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
     }
 
     // Office invitations - authenticated users can manage
