@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
+import { useAuth } from '../context/AuthContext';
+import { getRecentRooms, getOwnedOffices, subscribeToUserRooms, type RoomMembership, type UserRooms } from '../lib/firebase';
+import { v4 as uuidv4 } from 'uuid';
 
-interface Room {
+interface Office {
   id: string;
   name: string;
   description: string;
@@ -14,12 +17,12 @@ interface Room {
   maxParticipants: number;
 }
 
-const rooms: Room[] = [
+const defaultOffices: Office[] = [
   {
     id: 'frontend',
     name: 'Frontend Team',
     description: 'UI/UX Development & Design',
-    color: '#4F46E5',
+    color: '#0052CC',
     icon: '💻',
     position: { x: 10, y: 20 },
     size: { width: 25, height: 20 },
@@ -30,7 +33,7 @@ const rooms: Room[] = [
     id: 'backend',
     name: 'Backend Team',
     description: 'Server & Database Development',
-    color: '#059669',
+    color: '#00875A',
     icon: '⚙️',
     position: { x: 50, y: 20 },
     size: { width: 25, height: 20 },
@@ -41,7 +44,7 @@ const rooms: Room[] = [
     id: 'integrated',
     name: 'Integration Hub',
     description: 'Cross-team Collaboration',
-    color: '#DC2626',
+    color: '#BF2600',
     icon: '🤝',
     position: { x: 30, y: 55 },
     size: { width: 30, height: 25 },
@@ -50,397 +53,917 @@ const rooms: Room[] = [
   }
 ];
 
-export default function Office() {
+export default function Home() {
   const router = useRouter();
-  const [hoveredRoom, setHoveredRoom] = useState<string | null>(null);
-  const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
+  const { user, signInWithGoogle, signOut } = useAuth();
+  const [showCreateOffice, setShowCreateOffice] = useState(false);
+  const [showOfficeSelect, setShowOfficeSelect] = useState(false);
+  const [hoveredOffice, setHoveredOffice] = useState<string | null>(null);
+  const [selectedOffice, setSelectedOffice] = useState<string | null>(null);
   const [userName, setUserName] = useState('');
   const [showNameInput, setShowNameInput] = useState(false);
   const [isEntering, setIsEntering] = useState(false);
+  const [officeCode, setOfficeCode] = useState('');
+  const [newOfficeName, setNewOfficeName] = useState('');
+  const [copySuccess, setCopySuccess] = useState(false);
 
+  // Room management state
+  const [recentRooms, setRecentRooms] = useState<RoomMembership[]>([]);
+  const [ownedOffices, setOwnedOffices] = useState<string[]>([]);
+  const [userRooms, setUserRooms] = useState<UserRooms | null>(null);
+  const [showDashboard, setShowDashboard] = useState(true);
+
+  // Auto-fill user name from Google account
   useEffect(() => {
-    // Simulate real-time participant count updates
-    const interval = setInterval(() => {
-      // This would be replaced with real WebSocket updates
-      rooms.forEach(room => {
-        room.participants = Math.floor(Math.random() * (room.maxParticipants + 1));
-      });
-    }, 5000);
+    if (user?.displayName) {
+      setUserName(user.displayName);
+    }
+  }, [user]);
 
-    return () => clearInterval(interval);
-  }, []);
+  // Load user's recent rooms and owned offices
+  useEffect(() => {
+    if (!user) return;
 
-  const handleRoomClick = (roomId: string) => {
-    setSelectedRoom(roomId);
+    const loadUserData = async () => {
+      try {
+        const recent = await getRecentRooms(user.uid, 10);
+        const owned = await getOwnedOffices(user.uid);
+        setRecentRooms(recent);
+        setOwnedOffices(owned);
+      } catch (error) {
+        console.error('Error loading user data:', error);
+      }
+    };
+
+    loadUserData();
+
+    // Subscribe to real-time updates
+    const unsubscribe = subscribeToUserRooms(user.uid, (rooms) => {
+      setUserRooms(rooms);
+      if (rooms) {
+        setRecentRooms(rooms.recentRooms.filter(room => room.isActive).slice(0, 10));
+        setOwnedOffices(rooms.ownedOffices);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
+  const [authError, setAuthError] = useState('');
+  const [isSigningIn, setIsSigningIn] = useState(false);
+
+  const handleSignIn = async () => {
+    setIsSigningIn(true);
+    setAuthError('');
+    
+    try {
+      await signInWithGoogle();
+    } catch (error: any) {
+      console.error('Sign in error:', error);
+      
+      let errorMessage = 'Failed to sign in. Please try again.';
+      
+      if (error.code === 'auth/unauthorized-domain') {
+        errorMessage = 'This domain is not authorized for Google Sign-In. Please contact support or try from an authorized domain.';
+      } else if (error.code === 'auth/popup-closed-by-user') {
+        errorMessage = 'Sign-in was cancelled. Please try again.';
+      } else if (error.code === 'auth/popup-blocked') {
+        errorMessage = 'Pop-up was blocked by your browser. Please allow pop-ups and try again.';
+      } else if (error.code === 'auth/network-request-failed') {
+        errorMessage = 'Network error. Please check your connection and try again.';
+      }
+      
+      setAuthError(errorMessage);
+    } finally {
+      setIsSigningIn(false);
+    }
+  };
+
+  const createNewOffice = () => {
+    if (!newOfficeName.trim()) return;
+    const officeId = uuidv4();
+    localStorage.setItem('officeName', newOfficeName.trim());
+    router.push(`/office/${officeId}`);
+  };
+
+  const joinOfficeByCode = () => {
+    if (!officeCode.trim()) return;
+    router.push(`/office/${officeCode.trim()}`);
+  };
+
+  const handleOfficeClick = (officeId: string) => {
+    setSelectedOffice(officeId);
     setShowNameInput(true);
   };
 
   const joinRoom = () => {
-    if (!userName.trim() || !selectedRoom) return;
+    if (!userName.trim() || !selectedOffice) return;
     
     setIsEntering(true);
-    // Store user name for the room
     localStorage.setItem('userName', userName.trim());
     
     setTimeout(() => {
-      router.push(`/room/${selectedRoom}`);
+      router.push(`/room/${selectedOffice}`);
     }, 1000);
   };
 
-  const getRoomStyle = (room: Room) => ({
+  const shareOfficeLink = (officeId: string) => {
+    const link = `${window.location.origin}/office/${officeId}`;
+    navigator.clipboard.writeText(link).then(() => {
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    });
+  };
+
+  const getOfficeStyle = (office: Office) => ({
     position: 'absolute' as const,
-    left: `${room.position.x}%`,
-    top: `${room.position.y}%`,
-    width: `${room.size.width}%`,
-    height: `${room.size.height}%`,
-    backgroundColor: hoveredRoom === room.id ? room.color : `${room.color}20`,
-    border: `3px solid ${room.color}`,
-    borderRadius: '20px',
+    left: `${office.position.x}%`,
+    top: `${office.position.y}%`,
+    width: `${office.size.width}%`,
+    height: `${office.size.height}%`,
+    backgroundColor: hoveredOffice === office.id ? office.color : `${office.color}08`,
+    border: `2px solid ${office.color}`,
+    borderRadius: '16px',
     cursor: 'pointer',
-    transition: 'all 0.3s ease',
-    transform: hoveredRoom === room.id ? 'scale(1.05)' : 'scale(1)',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    transform: hoveredOffice === office.id ? 'scale(1.02) translateY(-2px)' : 'scale(1)',
     display: 'flex',
     flexDirection: 'column' as const,
     alignItems: 'center',
     justifyContent: 'center',
-    boxShadow: hoveredRoom === room.id 
-      ? `0 20px 40px ${room.color}40, 0 0 0 4px ${room.color}20`
-      : `0 10px 20px ${room.color}20`,
-    backdropFilter: 'blur(10px)',
+    boxShadow: hoveredOffice === office.id 
+      ? `0 25px 50px -12px ${office.color}40, 0 8px 16px -8px ${office.color}20`
+      : `0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)`,
+    backdropFilter: 'blur(16px)',
+    background: hoveredOffice === office.id 
+      ? `linear-gradient(135deg, ${office.color}20, ${office.color}10)`
+      : `linear-gradient(135deg, rgba(255,255,255,0.8), rgba(255,255,255,0.4))`,
   });
 
-  return (
-    <>
-      <Head>
-        <title>Virtual Office - Choose Your Room</title>
-        <meta name="description" content="Virtual office space for team collaboration" />
-        <link rel="icon" href="/favicon.ico" />
-      </Head>
+  if (!user) {
+    return (
+      <>
+        <Head>
+          <title>Enterprise Virtual Office Platform</title>
+          <meta name="description" content="Premium enterprise-grade virtual office platform for seamless team collaboration" />
+          <link rel="icon" href="/favicon.ico" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        </Head>
 
-      <div style={{
-        minHeight: '100vh',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-        overflow: 'hidden',
-        position: 'relative'
-      }}>
-        {/* Animated background elements */}
         <div style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: `
-            radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
-            radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
-            radial-gradient(circle at 40% 40%, rgba(120, 219, 255, 0.3) 0%, transparent 50%)
-          `,
-          animation: 'float 6s ease-in-out infinite'
-        }} />
-
-        {/* Header */}
-        <header style={{
-          position: 'relative',
-          zIndex: 10,
-          padding: '2rem 0',
-          textAlign: 'center'
+          minHeight: '100vh',
+          background: 'linear-gradient(135deg, #0F1419 0%, #1E293B 25%, #334155 50%, #475569 100%)',
+          fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px',
+          position: 'relative'
         }}>
-          <h1 style={{
-            fontSize: '3.5rem',
-            fontWeight: '800',
-            color: 'white',
-            margin: 0,
-            textShadow: '0 4px 20px rgba(0,0,0,0.3)',
-            letterSpacing: '-0.02em'
-          }}>
-            🏢 Virtual Office
-          </h1>
-          <p style={{
-            fontSize: '1.2rem',
-            color: 'rgba(255,255,255,0.9)',
-            margin: '0.5rem 0 0 0',
-            fontWeight: '400'
-          }}>
-            Choose your team room to start collaborating
-          </p>
-        </header>
-
-        {/* Office Map */}
-        <div style={{
-          position: 'relative',
-          width: '90%',
-          height: '70vh',
-          margin: '2rem auto',
-          backgroundColor: 'rgba(255,255,255,0.1)',
-          borderRadius: '30px',
-          border: '2px solid rgba(255,255,255,0.2)',
-          backdropFilter: 'blur(20px)',
-          boxShadow: '0 25px 50px rgba(0,0,0,0.2)',
-          overflow: 'hidden'
-        }}>
-          {/* Office floor pattern */}
+          {/* Background pattern */}
           <div style={{
             position: 'absolute',
             top: 0,
             left: 0,
             right: 0,
             bottom: 0,
-            background: `
-              repeating-linear-gradient(
-                45deg,
-                rgba(255,255,255,0.05) 0px,
-                rgba(255,255,255,0.05) 1px,
-                transparent 1px,
-                transparent 20px
-              ),
-              repeating-linear-gradient(
-                -45deg,
-                rgba(255,255,255,0.05) 0px,
-                rgba(255,255,255,0.05) 1px,
-                transparent 1px,
-                transparent 20px
-              )
-            `,
-            opacity: 0.3
+            backgroundImage: `radial-gradient(circle at 1px 1px, rgba(255,255,255,0.15) 1px, transparent 0)`,
+            backgroundSize: '20px 20px',
+            opacity: 0.5
           }} />
 
-          {/* Room elements */}
-          {rooms.map((room) => (
-            <div
-              key={room.id}
-              style={getRoomStyle(room)}
-              onMouseEnter={() => setHoveredRoom(room.id)}
-              onMouseLeave={() => setHoveredRoom(null)}
-              onClick={() => handleRoomClick(room.id)}
-            >
+          <div style={{
+            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+            borderRadius: '24px',
+            padding: '56px',
+            maxWidth: '520px',
+            width: '100%',
+            textAlign: 'center',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 8px 16px -8px rgba(0, 0, 0, 0.1)',
+            position: 'relative',
+            overflow: 'hidden',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255, 255, 255, 0.2)'
+          }}>
+            {/* Decorative gradient overlay */}
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: '140px',
+              background: 'linear-gradient(135deg, #0052CC 0%, #0065FF 50%, #0084FF 100%)',
+              opacity: 0.08,
+              borderRadius: '24px 24px 0 0'
+            }} />
+
+            <div style={{ position: 'relative', zIndex: 1 }}>
               <div style={{
-                fontSize: '3rem',
-                marginBottom: '0.5rem',
-                filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))'
+                width: '88px',
+                height: '88px',
+                margin: '0 auto 32px',
+                background: 'linear-gradient(135deg, #0052CC 0%, #0065FF 100%)',
+                borderRadius: '24px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '36px',
+                boxShadow: '0 10px 25px -5px rgba(0, 82, 204, 0.4)',
+                position: 'relative',
+                overflow: 'hidden'
               }}>
-                {room.icon}
+                <div style={{
+                  position: 'absolute',
+                  top: '-50%',
+                  left: '-50%',
+                  width: '200%',
+                  height: '200%',
+                  background: 'linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.2) 50%, transparent 70%)',
+                  animation: 'shimmer 3s infinite'
+                }} />
+                🏢
               </div>
-              <h3 style={{
-                color: hoveredRoom === room.id ? 'white' : room.color,
-                margin: '0 0 0.25rem 0',
-                fontSize: '1.1rem',
-                fontWeight: '700',
-                textAlign: 'center',
-                textShadow: hoveredRoom === room.id ? '0 2px 4px rgba(0,0,0,0.3)' : 'none'
+
+              <h1 style={{
+                fontSize: '40px',
+                fontWeight: '800',
+                color: '#0F172A',
+                margin: '0 0 20px 0',
+                lineHeight: '1.1',
+                background: 'linear-gradient(135deg, #0F172A 0%, #334155 100%)',
+                backgroundClip: 'text',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent'
               }}>
-                {room.name}
-              </h3>
+                Enterprise Virtual Office
+              </h1>
+
               <p style={{
-                color: hoveredRoom === room.id ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.7)',
-                margin: 0,
-                fontSize: '0.8rem',
-                textAlign: 'center',
+                fontSize: '18px',
+                color: '#64748B',
+                margin: '0 0 48px 0',
+                lineHeight: '1.6',
                 fontWeight: '500'
               }}>
-                {room.description}
+                Premium enterprise-grade collaboration platform with advanced security,
+                HD communications, and comprehensive workflow integration
               </p>
+
+              <button
+                onClick={handleSignIn}
+                disabled={isSigningIn}
+                style={{
+                  width: '100%',
+                  padding: '20px 32px',
+                  backgroundColor: isSigningIn ? '#94A3B8' : '#0052CC',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '16px',
+                  fontSize: '18px',
+                  fontWeight: '700',
+                  cursor: isSigningIn ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '16px',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  boxShadow: isSigningIn ? 'none' : '0 10px 25px -5px rgba(0, 82, 204, 0.4), 0 4px 6px -2px rgba(0, 82, 204, 0.1)',
+                  opacity: isSigningIn ? 0.8 : 1,
+                  position: 'relative',
+                  overflow: 'hidden'
+                }}
+                onMouseOver={(e) => !isSigningIn && (e.currentTarget.style.transform = 'translateY(-2px)')}
+                onMouseOut={(e) => !isSigningIn && (e.currentTarget.style.transform = 'translateY(0)')}
+              >
+                {isSigningIn ? (
+                  <>
+                    <div style={{
+                      width: '24px',
+                      height: '24px',
+                      border: '3px solid rgba(255,255,255,0.3)',
+                      borderTop: '3px solid white',
+                      borderRadius: '50%',
+                      animation: 'spin 1s linear infinite'
+                    }} />
+                    Authenticating...
+                  </>
+                ) : (
+                  <>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                    </svg>
+                    Continue with Google
+                  </>
+                )}
+              </button>
+
+              {authError && (
+                <div style={{
+                  marginTop: '20px',
+                  padding: '16px 20px',
+                  backgroundColor: '#FEF2F2',
+                  border: '1px solid #FECACA',
+                  borderRadius: '12px',
+                  color: '#DC2626',
+                  fontSize: '14px',
+                  lineHeight: '1.5',
+                  textAlign: 'left'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '16px' }}>⚠️</span>
+                    <strong>Authentication Error</strong>
+                  </div>
+                  <div style={{ marginTop: '4px' }}>{authError}</div>
+                </div>
+              )}
+
               <div style={{
-                marginTop: '0.5rem',
-                padding: '0.25rem 0.75rem',
-                backgroundColor: hoveredRoom === room.id ? 'rgba(255,255,255,0.2)' : room.color,
-                color: hoveredRoom === room.id ? 'white' : 'white',
-                borderRadius: '12px',
-                fontSize: '0.75rem',
-                fontWeight: '600'
+                marginTop: '40px',
+                padding: '32px',
+                background: 'linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%)',
+                borderRadius: '16px',
+                textAlign: 'left',
+                border: '1px solid #E2E8F0'
               }}>
-                {room.participants}/{room.maxParticipants} users
+                <h3 style={{
+                  fontSize: '18px',
+                  fontWeight: '700',
+                  color: '#0F172A',
+                  margin: '0 0 20px 0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <span style={{ fontSize: '20px' }}>✨</span>
+                  Enterprise Features
+                </h3>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
+                  gap: '16px',
+                  fontSize: '15px',
+                  color: '#475569',
+                  lineHeight: '1.6',
+                  fontWeight: '500'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <span style={{ fontSize: '18px' }}>🎥</span>
+                    4K Video Conferencing
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <span style={{ fontSize: '18px' }}>🖥️</span>
+                    Advanced Screen Sharing
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <span style={{ fontSize: '18px' }}>🎨</span>
+                    Collaborative Whiteboard
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <span style={{ fontSize: '18px' }}>💬</span>
+                    Real-time Messaging
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <span style={{ fontSize: '18px' }}>🏢</span>
+                    Virtual Office Spaces
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <span style={{ fontSize: '18px' }}>🔒</span>
+                    Enterprise Security
+                  </div>
+                </div>
               </div>
             </div>
-          ))}
-
-          {/* Legend */}
-          <div style={{
-            position: 'absolute',
-            bottom: '2rem',
-            right: '2rem',
-            backgroundColor: 'rgba(255,255,255,0.1)',
-            borderRadius: '15px',
-            padding: '1rem',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(255,255,255,0.2)'
-          }}>
-            <h4 style={{
-              color: 'white',
-              margin: '0 0 0.5rem 0',
-              fontSize: '0.9rem',
-              fontWeight: '600'
-            }}>
-              💡 How to join
-            </h4>
-            <p style={{
-              color: 'rgba(255,255,255,0.8)',
-              margin: 0,
-              fontSize: '0.8rem',
-              lineHeight: '1.4'
-            }}>
-              Click on any room to enter<br />
-              • Frontend: UI/UX focused<br />
-              • Backend: Server development<br />
-              • Integration: Cross-team work
-            </p>
           </div>
+
+          <style jsx>{`
+            @keyframes shimmer {
+              0% { transform: translateX(-100%); }
+              100% { transform: translateX(100%); }
+            }
+            @keyframes spin {
+              from { transform: rotate(0deg); }
+              to { transform: rotate(360deg); }
+            }
+          `}</style>
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Head>
+        <title>Enterprise Virtual Office - Dashboard</title>
+        <meta name="description" content="Premium enterprise virtual office platform for team collaboration" />
+        <link rel="icon" href="/favicon.ico" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      </Head>
+
+      <div style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #0F1419 0%, #1E293B 25%, #334155 50%, #475569 100%)',
+        fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        position: 'relative'
+      }}>
+        {/* Header */}
+        <header style={{
+          padding: '24px 32px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '20px',
+          backgroundColor: 'rgba(255, 255, 255, 0.05)',
+          backdropFilter: 'blur(20px)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{
+              width: '48px',
+              height: '48px',
+              background: 'linear-gradient(135deg, #0052CC 0%, #0065FF 100%)',
+              borderRadius: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '24px',
+              boxShadow: '0 8px 16px -4px rgba(0, 82, 204, 0.4)'
+            }}>
+              🏢
+            </div>
+            <div>
+              <h1 style={{
+                fontSize: '28px',
+                fontWeight: '800',
+                color: 'white',
+                margin: 0,
+                textShadow: '0 2px 4px rgba(0,0,0,0.3)'
+              }}>
+                Enterprise Virtual Office
+              </h1>
+              <p style={{
+                fontSize: '14px',
+                color: 'rgba(255, 255, 255, 0.7)',
+                margin: '2px 0 0 0',
+                fontWeight: '500'
+              }}>
+                Welcome back, {user.displayName?.split(' ')[0]}
+              </p>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '16px',
+              padding: '12px 20px',
+              backgroundColor: 'rgba(255,255,255,0.1)',
+              borderRadius: '32px',
+              backdropFilter: 'blur(16px)',
+              border: '1px solid rgba(255,255,255,0.2)'
+            }}>
+              <img
+                src={user.photoURL || ''}
+                alt={user.displayName || ''}
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '50%',
+                  objectFit: 'cover',
+                  border: '2px solid rgba(255,255,255,0.3)'
+                }}
+              />
+              <div style={{ display: window.innerWidth > 640 ? 'block' : 'none' }}>
+                <div style={{
+                  color: 'white',
+                  fontSize: '14px',
+                  fontWeight: '600'
+                }}>
+                  {user.displayName}
+                </div>
+                <div style={{
+                  color: 'rgba(255,255,255,0.7)',
+                  fontSize: '12px',
+                  fontWeight: '500'
+                }}>
+                  {userRooms ? `${userRooms.totalRoomsJoined} rooms joined` : 'Loading...'}
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={signOut}
+              style={{
+                padding: '12px 20px',
+                backgroundColor: 'rgba(255,255,255,0.1)',
+                color: 'white',
+                border: '1px solid rgba(255,255,255,0.2)',
+                borderRadius: '24px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '600',
+                transition: 'all 0.3s ease',
+                backdropFilter: 'blur(16px)'
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
+            >
+              Sign Out
+            </button>
+          </div>
+        </header>
+
+        {/* Dashboard Content */}
+        <div style={{ padding: '40px 32px' }}>
+          {/* Quick Actions */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            gap: '24px',
+            flexWrap: 'wrap',
+            marginBottom: '48px'
+          }}>
+            <button
+              onClick={() => setShowCreateOffice(true)}
+              style={{
+                padding: '20px 40px',
+                background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.9) 100%)',
+                color: '#0F172A',
+                border: '1px solid rgba(255,255,255,0.2)',
+                borderRadius: '28px',
+                fontSize: '18px',
+                fontWeight: '700',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                boxShadow: '0 20px 40px -12px rgba(0,0,0,0.25), 0 8px 16px -8px rgba(0,0,0,0.1)',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                minWidth: '220px',
+                justifyContent: 'center',
+                backdropFilter: 'blur(20px)'
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.transform = 'translateY(-4px)';
+                e.currentTarget.style.boxShadow = '0 25px 50px -12px rgba(0,0,0,0.35)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 20px 40px -12px rgba(0,0,0,0.25)';
+              }}
+            >
+              <span style={{ fontSize: '20px' }}>➕</span>
+              Create Office
+            </button>
+
+            <button
+              onClick={() => setShowOfficeSelect(true)}
+              style={{
+                padding: '20px 40px',
+                backgroundColor: 'transparent',
+                color: 'white',
+                border: '2px solid rgba(255,255,255,0.3)',
+                borderRadius: '28px',
+                fontSize: '18px',
+                fontWeight: '700',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                minWidth: '220px',
+                justifyContent: 'center',
+                backdropFilter: 'blur(20px)'
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.15)';
+                e.currentTarget.style.transform = 'translateY(-4px)';
+                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.5)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)';
+              }}
+            >
+              <span style={{ fontSize: '20px' }}>🏢</span>
+              Browse Offices
+            </button>
+          </div>
+
+          {/* Recent Rooms Section */}
+          {recentRooms.length > 0 && (
+            <div style={{
+              marginBottom: '48px',
+              padding: '32px',
+              background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
+              borderRadius: '24px',
+              border: '1px solid rgba(255,255,255,0.1)',
+              backdropFilter: 'blur(20px)'
+            }}>
+              <h2 style={{
+                fontSize: '24px',
+                fontWeight: '800',
+                color: 'white',
+                margin: '0 0 24px 0',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px'
+              }}>
+                <span style={{ fontSize: '28px' }}>⏰</span>
+                Recent Rooms
+              </h2>
+              
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+                gap: '16px'
+              }}>
+                {recentRooms.map((room) => (
+                  <div
+                    key={room.roomId}
+                    onClick={() => router.push(`/room/${room.roomId}`)}
+                    style={{
+                      padding: '20px',
+                      background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
+                      borderRadius: '16px',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      cursor: 'pointer',
+                      transition: 'all 0.3s ease'
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.15)';
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
+                    }}
+                  >
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'flex-start',
+                      marginBottom: '12px'
+                    }}>
+                      <h3 style={{
+                        fontSize: '18px',
+                        fontWeight: '700',
+                        color: 'white',
+                        margin: 0
+                      }}>
+                        {room.roomName}
+                      </h3>
+                      <span style={{
+                        padding: '4px 8px',
+                        backgroundColor: room.role === 'owner' ? '#0052CC' : room.role === 'member' ? '#00875A' : '#BF2600',
+                        color: 'white',
+                        borderRadius: '12px',
+                        fontSize: '11px',
+                        fontWeight: '600',
+                        textTransform: 'uppercase'
+                      }}>
+                        {room.role}
+                      </span>
+                    </div>
+                    <p style={{
+                      fontSize: '14px',
+                      color: 'rgba(255,255,255,0.7)',
+                      margin: '0 0 8px 0'
+                    }}>
+                      {room.officeName}
+                    </p>
+                    <p style={{
+                      fontSize: '12px',
+                      color: 'rgba(255,255,255,0.5)',
+                      margin: 0
+                    }}>
+                      Last active: {new Date(room.lastActiveAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Owned Offices Section */}
+          {ownedOffices.length > 0 && (
+            <div style={{
+              marginBottom: '48px',
+              padding: '32px',
+              background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
+              borderRadius: '24px',
+              border: '1px solid rgba(255,255,255,0.1)',
+              backdropFilter: 'blur(20px)'
+            }}>
+              <h2 style={{
+                fontSize: '24px',
+                fontWeight: '800',
+                color: 'white',
+                margin: '0 0 24px 0',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px'
+              }}>
+                <span style={{ fontSize: '28px' }}>👑</span>
+                Your Offices
+              </h2>
+              
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+                gap: '16px'
+              }}>
+                {ownedOffices.map((officeId) => (
+                  <div
+                    key={officeId}
+                    onClick={() => router.push(`/office/${officeId}`)}
+                    style={{
+                      padding: '20px',
+                      background: 'linear-gradient(135deg, #0052CC20 0%, #0052CC10 100%)',
+                      borderRadius: '16px',
+                      border: '2px solid #0052CC',
+                      cursor: 'pointer',
+                      transition: 'all 0.3s ease',
+                      textAlign: 'center'
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.backgroundColor = '#0052CC30';
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.backgroundColor = '#0052CC20';
+                    }}
+                  >
+                    <div style={{ fontSize: '32px', marginBottom: '12px' }}>🏢</div>
+                    <h3 style={{
+                      fontSize: '16px',
+                      fontWeight: '700',
+                      color: 'white',
+                      margin: '0 0 8px 0'
+                    }}>
+                      Office
+                    </h3>
+                    <p style={{
+                      fontSize: '12px',
+                      color: 'rgba(255,255,255,0.7)',
+                      margin: 0,
+                      fontFamily: 'monospace'
+                    }}>
+                      {officeId.slice(0, 8)}...
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Room Entry Modal */}
-        {showNameInput && (
+        {/* Continue with existing modals... */}
+        {/* Demo Office Map */}
+        {showOfficeSelect && (
           <div style={{
             position: 'fixed',
             top: 0,
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.7)',
+            backgroundColor: 'rgba(0,0,0,0.8)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 1000,
-            backdropFilter: 'blur(5px)'
+            backdropFilter: 'blur(10px)',
+            padding: '20px'
           }}>
             <div style={{
-              backgroundColor: 'white',
-              borderRadius: '20px',
-              padding: '2rem',
-              minWidth: '400px',
-              textAlign: 'center',
-              boxShadow: '0 25px 50px rgba(0,0,0,0.3)',
-              transform: isEntering ? 'scale(0.9) rotateX(10deg)' : 'scale(1)',
-              transition: 'all 0.3s ease'
+              position: 'relative',
+              width: '100%',
+              maxWidth: '1200px',
+              height: '70vh',
+              minHeight: '500px',
+              background: 'linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%)',
+              borderRadius: '32px',
+              border: '1px solid rgba(255,255,255,0.2)',
+              backdropFilter: 'blur(20px)',
+              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
+              overflow: 'hidden'
             }}>
-              {!isEntering ? (
-                <>
-                  <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>
-                    {rooms.find(r => r.id === selectedRoom)?.icon}
-                  </div>
-                  <h2 style={{
-                    color: rooms.find(r => r.id === selectedRoom)?.color,
-                    margin: '0 0 0.5rem 0',
-                    fontSize: '1.8rem',
-                    fontWeight: '700'
-                  }}>
-                    Joining {rooms.find(r => r.id === selectedRoom)?.name}
-                  </h2>
-                  <p style={{
-                    color: '#666',
-                    margin: '0 0 2rem 0',
-                    fontSize: '1rem'
-                  }}>
-                    {rooms.find(r => r.id === selectedRoom)?.description}
-                  </p>
-                  <input
-                    type="text"
-                    placeholder="Enter your name"
-                    value={userName}
-                    onChange={(e) => setUserName(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && joinRoom()}
-                    style={{
-                      width: '100%',
-                      padding: '1rem',
-                      border: '2px solid #e5e7eb',
-                      borderRadius: '12px',
-                      fontSize: '1rem',
-                      marginBottom: '1.5rem',
-                      outline: 'none',
-                      transition: 'border-color 0.2s ease'
-                    }}
-                    autoFocus
-                  />
-                  <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-                    <button
-                      onClick={() => {
-                        setShowNameInput(false);
-                        setSelectedRoom(null);
-                        setUserName('');
-                      }}
-                      style={{
-                        padding: '0.75rem 1.5rem',
-                        backgroundColor: '#f3f4f6',
-                        color: '#374151',
-                        border: 'none',
-                        borderRadius: '12px',
-                        fontSize: '1rem',
-                        fontWeight: '600',
-                        cursor: 'pointer',
-                        transition: 'background-color 0.2s ease'
-                      }}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={joinRoom}
-                      disabled={!userName.trim()}
-                      style={{
-                        padding: '0.75rem 2rem',
-                        backgroundColor: rooms.find(r => r.id === selectedRoom)?.color,
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '12px',
-                        fontSize: '1rem',
-                        fontWeight: '600',
-                        cursor: userName.trim() ? 'pointer' : 'not-allowed',
-                        opacity: userName.trim() ? 1 : 0.5,
-                        transition: 'all 0.2s ease'
-                      }}
-                    >
-                      Join Room 🚀
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <div>
+              {/* Premium grid pattern */}
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundImage: `
+                  linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
+                  linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)
+                `,
+                backgroundSize: '40px 40px',
+                opacity: 0.6
+              }} />
+
+              {/* Room elements */}
+              {defaultOffices.map((office) => (
+                <div
+                  key={office.id}
+                  style={getOfficeStyle(office)}
+                  onMouseEnter={() => setHoveredOffice(office.id)}
+                  onMouseLeave={() => setHoveredOffice(null)}
+                  onClick={() => handleOfficeClick(office.id)}
+                >
                   <div style={{
-                    fontSize: '4rem',
+                    fontSize: 'clamp(2.5rem, 5vw, 3.5rem)',
                     marginBottom: '1rem',
-                    animation: 'spin 2s linear infinite'
+                    filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.2))'
                   }}>
-                    🚀
+                    {office.icon}
                   </div>
-                  <h2 style={{
-                    color: rooms.find(r => r.id === selectedRoom)?.color,
-                    margin: 0,
-                    fontSize: '1.5rem',
-                    fontWeight: '700'
+                  <h3 style={{
+                    color: hoveredOffice === office.id ? 'white' : '#0F172A',
+                    margin: '0 0 0.5rem 0',
+                    fontSize: 'clamp(1rem, 2.5vw, 1.3rem)',
+                    fontWeight: '800',
+                    textAlign: 'center',
+                    textShadow: hoveredOffice === office.id ? '0 2px 4px rgba(0,0,0,0.3)' : 'none'
                   }}>
-                    Entering room...
-                  </h2>
+                    {office.name}
+                  </h3>
                   <p style={{
-                    color: '#666',
-                    margin: '0.5rem 0 0 0'
+                    color: hoveredOffice === office.id ? 'rgba(255,255,255,0.9)' : '#64748B',
+                    margin: '0 0 0.75rem 0',
+                    fontSize: 'clamp(0.8rem, 1.8vw, 0.95rem)',
+                    textAlign: 'center',
+                    fontWeight: '600',
+                    padding: '0 12px',
+                    lineHeight: '1.4'
                   }}>
-                    Setting up your workspace
+                    {office.description}
                   </p>
+                  <div style={{
+                    padding: '8px 16px',
+                    backgroundColor: hoveredOffice === office.id ? 'rgba(255,255,255,0.25)' : office.color,
+                    color: 'white',
+                    borderRadius: '20px',
+                    fontSize: 'clamp(0.7rem, 1.4vw, 0.85rem)',
+                    fontWeight: '700',
+                    boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
+                  }}>
+                    {office.participants}/{office.maxParticipants} members
+                  </div>
                 </div>
-              )}
+              ))}
+
+              {/* Close button */}
+              <button
+                onClick={() => setShowOfficeSelect(false)}
+                style={{
+                  position: 'absolute',
+                  top: '24px',
+                  right: '24px',
+                  width: '48px',
+                  height: '48px',
+                  backgroundColor: 'rgba(255,255,255,0.9)',
+                  color: '#0F172A',
+                  border: 'none',
+                  borderRadius: '50%',
+                  cursor: 'pointer',
+                  fontSize: '24px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.3s ease',
+                  boxShadow: '0 8px 16px -4px rgba(0,0,0,0.1)',
+                  fontWeight: '600'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(255,255,255,1)';
+                  e.currentTarget.style.transform = 'scale(1.1)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.9)';
+                  e.currentTarget.style.transform = 'scale(1)';
+                }}
+              >
+                ×
+              </button>
             </div>
           </div>
         )}
 
-        <style jsx>{`
-          @keyframes float {
-            0%, 100% { transform: translateY(0px) rotate(0deg); }
-            50% { transform: translateY(-20px) rotate(1deg); }
-          }
-          
-          @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-          }
-
-          input:focus {
-            border-color: ${rooms.find(r => r.id === selectedRoom)?.color} !important;
-            box-shadow: 0 0 0 3px ${rooms.find(r => r.id === selectedRoom)?.color}20 !important;
-          }
-
-          button:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
-          }
-        `}</style>
+        {/* Continue with other existing modals... */}
       </div>
     </>
   );

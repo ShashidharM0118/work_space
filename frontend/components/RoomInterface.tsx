@@ -40,12 +40,26 @@ interface RoomInterfaceProps {
   testConnections: () => void;
   forceReconnect: () => void;
   ensureBidirectionalStreaming: () => void;
+  onLeaveRoom?: () => void;
 }
 
 export default function RoomInterface(props: RoomInterfaceProps) {
   const router = useRouter();
   const [chatOpen, setChatOpen] = useState(false);
   const [showParticipants, setShowParticipants] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [copySuccess, setCopySuccess] = useState(false);
+
+  // Detect mobile screen size
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const {
     roomId,
@@ -74,66 +88,99 @@ export default function RoomInterface(props: RoomInterfaceProps) {
     stopDrawing,
     testConnections,
     forceReconnect,
-    ensureBidirectionalStreaming
+    ensureBidirectionalStreaming,
+    onLeaveRoom
   } = props;
+
+  const shareRoomLink = () => {
+    const link = `${window.location.origin}/room/${roomId}`;
+    navigator.clipboard.writeText(link).then(() => {
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    });
+  };
 
   return (
     <div style={{ 
       height: '100vh', 
-      backgroundColor: '#202124',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+      background: 'linear-gradient(135deg, #0F1419 0%, #1E293B 25%, #334155 50%, #475569 100%)',
+      fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
       display: 'flex',
       flexDirection: 'column',
       overflow: 'hidden'
     }}>
       {/* Header */}
       <header style={{ 
-        padding: '16px 24px', 
-        borderBottom: '1px solid #3c4043',
+        padding: isMobile ? '16px 20px' : '20px 32px', 
+        borderBottom: '1px solid rgba(255,255,255,0.1)',
         display: 'flex', 
         justifyContent: 'space-between', 
         alignItems: 'center',
-        backgroundColor: '#1f1f1f',
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        backdropFilter: 'blur(20px)',
         zIndex: 10,
-        minHeight: '64px'
+        minHeight: isMobile ? '64px' : '72px',
+        flexWrap: isMobile ? 'wrap' : 'nowrap',
+        gap: '12px'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: isMobile ? '8px' : '16px',
+          flex: isMobile ? '1 1 100%' : 'auto',
+          order: isMobile ? 1 : 0
+        }}>
           <button
-            onClick={() => router.push('/')}
+            onClick={() => {
+              if (onLeaveRoom) onLeaveRoom();
+              router.push('/');
+            }}
             style={{
-              padding: '8px 16px',
-              backgroundColor: '#3c4043',
-              color: '#e8eaed',
-              border: 'none',
+              padding: isMobile ? '8px 16px' : '12px 20px',
+              backgroundColor: 'rgba(255,255,255,0.1)',
+              color: 'white',
+              border: '1px solid rgba(255,255,255,0.2)',
               borderRadius: '24px',
               cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: '500',
+              fontSize: isMobile ? '14px' : '16px',
+              fontWeight: '600',
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
-              transition: 'all 0.2s ease'
+              transition: 'all 0.3s ease',
+              whiteSpace: 'nowrap',
+              backdropFilter: 'blur(16px)'
             }}
-            onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#5f6368'}
-            onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#3c4043'}
+            onMouseOver={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)';
+              e.currentTarget.style.transform = 'translateY(-1px)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
+              e.currentTarget.style.transform = 'translateY(0)';
+            }}
           >
-            ← Back to Office
+            {isMobile ? '←' : '← Back to Office'}
           </button>
-          <div>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <h1 style={{ 
               margin: 0, 
-              fontSize: '20px', 
-              fontWeight: '400', 
-              color: '#e8eaed' 
+              fontSize: isMobile ? '18px' : '24px', 
+              fontWeight: '800', 
+              color: 'white',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap'
             }}>
               {roomId?.charAt(0).toUpperCase() + roomId?.slice(1)} Team Room
             </h1>
             <div style={{ 
-              fontSize: '14px', 
-              color: '#9aa0a6',
-              marginTop: '2px'
+              fontSize: isMobile ? '13px' : '15px', 
+              color: 'rgba(255,255,255,0.7)',
+              marginTop: '4px',
+              fontWeight: '500'
             }}>
-              {peers.length + 1} participant{peers.length !== 0 ? 's' : ''}
+              {peers.length + 1} participant{peers.length !== 0 ? 's' : ''} • Enterprise Meeting
             </div>
           </div>
         </div>
@@ -141,43 +188,67 @@ export default function RoomInterface(props: RoomInterfaceProps) {
         <div style={{ 
           display: 'flex',
           alignItems: 'center',
-          gap: '12px'
+          gap: isMobile ? '6px' : '12px',
+          order: isMobile ? 0 : 1
         }}>
+          <button
+            onClick={shareRoomLink}
+            style={{
+              padding: isMobile ? '6px 10px' : '8px 12px',
+              backgroundColor: '#3c4043',
+              color: '#e8eaed',
+              border: '1px solid #5f6368',
+              borderRadius: '20px',
+              cursor: 'pointer',
+              fontSize: isMobile ? '12px' : '14px',
+              fontWeight: '500',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              transition: 'all 0.2s ease'
+            }}
+            title="Share room link"
+          >
+            🔗 {!isMobile && 'Share'}
+          </button>
+
           <div style={{ 
-            padding: '6px 12px', 
+            padding: isMobile ? '4px 8px' : '6px 12px', 
             borderRadius: '16px', 
             backgroundColor: isConnected ? '#137333' : '#d93025',
             color: 'white',
-            fontSize: '12px',
+            fontSize: isMobile ? '10px' : '12px',
             fontWeight: '500',
             display: 'flex',
             alignItems: 'center',
-            gap: '6px'
+            gap: '4px'
           }}>
             <div style={{
-              width: '8px',
-              height: '8px',
+              width: isMobile ? '6px' : '8px',
+              height: isMobile ? '6px' : '8px',
               borderRadius: '50%',
               backgroundColor: 'white'
             }} />
-            {connectionStatus}
+            {isMobile ? (isConnected ? 'ON' : 'OFF') : connectionStatus}
           </div>
           
-          <button
-            onClick={() => setShowParticipants(!showParticipants)}
-            style={{
-              padding: '8px 12px',
-              backgroundColor: showParticipants ? '#1a73e8' : 'transparent',
-              color: showParticipants ? 'white' : '#e8eaed',
-              border: '1px solid #5f6368',
-              borderRadius: '24px',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: '500'
-            }}
-          >
-            👥 {peers.length + 1}
-          </button>
+          {!isMobile && (
+            <button
+              onClick={() => setShowParticipants(!showParticipants)}
+              style={{
+                padding: '8px 12px',
+                backgroundColor: showParticipants ? '#1a73e8' : 'transparent',
+                color: showParticipants ? 'white' : '#e8eaed',
+                border: '1px solid #5f6368',
+                borderRadius: '24px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '500'
+              }}
+            >
+              👥 {peers.length + 1}
+            </button>
+          )}
         </div>
       </header>
 
@@ -274,18 +345,22 @@ export default function RoomInterface(props: RoomInterfaceProps) {
             /* Video Grid */
             <div style={{ 
               flex: 1,
-              padding: '16px',
+              padding: isMobile ? '12px' : '16px',
               display: 'grid',
-              gridTemplateColumns: peers.length === 0 ? '1fr' : 
-                                   peers.length === 1 ? 'repeat(2, 1fr)' :
-                                   peers.length <= 3 ? 'repeat(2, 1fr)' :
-                                   'repeat(3, 1fr)',
-              gridTemplateRows: peers.length <= 1 ? '1fr' :
-                               peers.length <= 3 ? 'repeat(2, 1fr)' :
-                               'repeat(2, 1fr)',
-              gap: '12px',
+              gridTemplateColumns: isMobile ? 
+                (peers.length === 0 ? '1fr' : 'repeat(auto-fit, minmax(280px, 1fr))') :
+                (peers.length === 0 ? '1fr' : 
+                 peers.length === 1 ? 'repeat(2, 1fr)' :
+                 peers.length <= 3 ? 'repeat(2, 1fr)' :
+                 'repeat(3, 1fr)'),
+              gridTemplateRows: isMobile ? 'auto' :
+                               (peers.length <= 1 ? '1fr' :
+                                peers.length <= 3 ? 'repeat(2, 1fr)' :
+                                'repeat(2, 1fr)'),
+              gap: isMobile ? '8px' : '12px',
               alignItems: 'center',
-              justifyItems: 'center'
+              justifyItems: 'center',
+              overflowY: isMobile ? 'auto' : 'hidden'
             }}>
               {/* Local Video */}
               <div style={{ 
@@ -370,11 +445,18 @@ export default function RoomInterface(props: RoomInterfaceProps) {
         {/* Chat Sidebar */}
         {chatOpen && (
           <div style={{
-            width: '320px',
+            width: isMobile ? '100%' : '320px',
             backgroundColor: '#1f1f1f',
-            borderLeft: '1px solid #3c4043',
+            borderLeft: isMobile ? 'none' : '1px solid #3c4043',
+            borderTop: isMobile ? '1px solid #3c4043' : 'none',
             display: 'flex',
-            flexDirection: 'column'
+            flexDirection: 'column',
+            position: isMobile ? 'absolute' : 'relative',
+            top: isMobile ? 0 : 'auto',
+            left: isMobile ? 0 : 'auto',
+            right: isMobile ? 0 : 'auto',
+            bottom: isMobile ? 0 : 'auto',
+            zIndex: isMobile ? 100 : 'auto'
           }}>
             <div style={{
               padding: '16px 20px',
@@ -485,15 +567,22 @@ export default function RoomInterface(props: RoomInterfaceProps) {
 
       {/* Bottom Controls */}
       <div style={{
-        padding: '16px 24px',
-        backgroundColor: '#1f1f1f',
-        borderTop: '1px solid #3c4043',
+        padding: isMobile ? '12px 16px' : '16px 24px',
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        backdropFilter: 'blur(20px)',
+        borderTop: '1px solid rgba(255,255,255,0.1)',
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
-        gap: '12px'
+        gap: isMobile ? '8px' : '12px',
+        flexWrap: isMobile ? 'wrap' : 'nowrap'
       }}>
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div style={{ 
+          display: 'flex', 
+          gap: isMobile ? '6px' : '8px',
+          justifyContent: 'center',
+          flex: 1
+        }}>
           {/* Microphone */}
           <button 
             onClick={() => {
@@ -507,14 +596,14 @@ export default function RoomInterface(props: RoomInterfaceProps) {
             }}
             disabled={!streamRef.current}
             style={{
-              width: '48px',
-              height: '48px',
+              width: isMobile ? '44px' : '48px',
+              height: isMobile ? '44px' : '48px',
               borderRadius: '50%',
               backgroundColor: streamRef.current?.getAudioTracks()[0]?.enabled !== false ? '#3c4043' : '#d93025',
               color: 'white',
               border: 'none',
               cursor: 'pointer',
-              fontSize: '20px',
+              fontSize: isMobile ? '18px' : '20px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -538,14 +627,14 @@ export default function RoomInterface(props: RoomInterfaceProps) {
             }}
             disabled={!streamRef.current}
             style={{
-              width: '48px',
-              height: '48px',
+              width: isMobile ? '44px' : '48px',
+              height: isMobile ? '44px' : '48px',
               borderRadius: '50%',
               backgroundColor: streamRef.current?.getVideoTracks()[0]?.enabled !== false ? '#3c4043' : '#d93025',
               color: 'white',
               border: 'none',
               cursor: 'pointer',
-              fontSize: '20px',
+              fontSize: isMobile ? '18px' : '20px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -561,14 +650,14 @@ export default function RoomInterface(props: RoomInterfaceProps) {
             onClick={isScreenSharing ? stopScreenShare : startScreenShare}
             disabled={!isConnected}
             style={{
-              width: '48px',
-              height: '48px',
+              width: isMobile ? '44px' : '48px',
+              height: isMobile ? '44px' : '48px',
               borderRadius: '50%',
               backgroundColor: isScreenSharing ? '#137333' : '#3c4043',
               color: 'white',
               border: 'none',
               cursor: isConnected ? 'pointer' : 'not-allowed',
-              fontSize: '20px',
+              fontSize: isMobile ? '18px' : '20px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -584,14 +673,14 @@ export default function RoomInterface(props: RoomInterfaceProps) {
           <button 
             onClick={() => setShowWhiteboard(!showWhiteboard)}
             style={{
-              width: '48px',
-              height: '48px',
+              width: isMobile ? '44px' : '48px',
+              height: isMobile ? '44px' : '48px',
               borderRadius: '50%',
               backgroundColor: showWhiteboard ? '#8e24aa' : '#3c4043',
               color: 'white',
               border: 'none',
               cursor: 'pointer',
-              fontSize: '20px',
+              fontSize: isMobile ? '18px' : '20px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -606,14 +695,14 @@ export default function RoomInterface(props: RoomInterfaceProps) {
           <button 
             onClick={() => setChatOpen(!chatOpen)}
             style={{
-              width: '48px',
-              height: '48px',
+              width: isMobile ? '44px' : '48px',
+              height: isMobile ? '44px' : '48px',
               borderRadius: '50%',
               backgroundColor: chatOpen ? '#1a73e8' : '#3c4043',
               color: 'white',
               border: 'none',
               cursor: 'pointer',
-              fontSize: '20px',
+              fontSize: isMobile ? '18px' : '20px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -628,11 +717,11 @@ export default function RoomInterface(props: RoomInterfaceProps) {
                 position: 'absolute',
                 top: '-4px',
                 right: '-4px',
-                width: '16px',
-                height: '16px',
+                width: isMobile ? '14px' : '16px',
+                height: isMobile ? '14px' : '16px',
                 backgroundColor: '#d93025',
                 borderRadius: '50%',
-                fontSize: '10px',
+                fontSize: isMobile ? '9px' : '10px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -645,23 +734,75 @@ export default function RoomInterface(props: RoomInterfaceProps) {
         </div>
 
         {/* Leave Button */}
-        <button
-          onClick={() => router.push('/')}
-          style={{
-            padding: '12px 24px',
-            backgroundColor: '#d93025',
-            color: 'white',
-            border: 'none',
-            borderRadius: '24px',
-            cursor: 'pointer',
-            fontSize: '14px',
-            fontWeight: '500',
-            marginLeft: '24px'
-          }}
-        >
-          Leave
-        </button>
+        {!isMobile && (
+          <button
+            onClick={() => {
+              if (onLeaveRoom) onLeaveRoom();
+              router.push('/');
+            }}
+            style={{
+              padding: '12px 24px',
+              backgroundColor: '#d93025',
+              color: 'white',
+              border: 'none',
+              borderRadius: '24px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: '500',
+              marginLeft: '24px'
+            }}
+          >
+            Leave
+          </button>
+        )}
+        
+        {/* Mobile Leave Button */}
+        {isMobile && (
+          <button
+            onClick={() => {
+              if (onLeaveRoom) onLeaveRoom();
+              router.push('/');
+            }}
+            style={{
+              width: '44px',
+              height: '44px',
+              borderRadius: '50%',
+              backgroundColor: '#d93025',
+              color: 'white',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: '18px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.2s ease'
+            }}
+            title="Leave room"
+          >
+            ❌
+          </button>
+        )}
       </div>
+
+      {/* Copy Success Toast */}
+      {copySuccess && (
+        <div style={{
+          position: 'fixed',
+          bottom: isMobile ? '80px' : '24px',
+          right: isMobile ? '16px' : '24px',
+          backgroundColor: '#10B981',
+          color: 'white',
+          padding: isMobile ? '8px 16px' : '12px 20px',
+          borderRadius: '12px',
+          fontSize: isMobile ? '12px' : '14px',
+          fontWeight: '500',
+          boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
+          zIndex: 1001,
+          animation: 'slideInUp 0.3s ease'
+        }}>
+          ✅ Link copied to clipboard!
+        </div>
+      )}
 
       {/* Dev Tools */}
       {process.env.NODE_ENV === 'development' && (

@@ -1,0 +1,55 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Development-friendly rules - liberal but require authentication
+    
+    // Users can read and write their own user document and read others
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Office documents - authenticated users can do most operations
+    match /offices/{officeId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Room documents - authenticated users can do most operations
+    match /rooms/{roomId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // User room memberships - track which rooms users are in
+    match /userRooms/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Room memberships - track who is in each room
+    match /roomMembers/{roomId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Join requests - authenticated users can manage
+    match /joinRequests/{requestId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Chat messages - authenticated users can read/write
+    match /rooms/{roomId}/messages/{messageId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Real-time presence - authenticated users can manage
+    match /presence/{userId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // User activity logs - track recent rooms
+    match /userActivity/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+} 

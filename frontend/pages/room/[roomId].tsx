@@ -3,6 +3,8 @@ import { useRouter } from 'next/router';
 import Peer from 'simple-peer';
 import { v4 as uuidv4 } from 'uuid';
 import RoomInterface from '../../components/RoomInterface';
+import { useAuth } from '../../context/AuthContext';
+import { leaveRoom } from '../../lib/firebase';
 
 interface ChatMsg {
   id: string;
@@ -17,6 +19,7 @@ interface PeerRef {
 export default function Room() {
   const router = useRouter();
   const { roomId } = router.query as { roomId: string };
+  const { user } = useAuth();
 
   const myId = useRef(uuidv4());
   const myVideo = useRef<HTMLVideoElement>(null);
@@ -633,6 +636,15 @@ export default function Room() {
       testConnections={testConnections}
       forceReconnect={forceReconnect}
       ensureBidirectionalStreaming={ensureBidirectionalStreaming}
+      onLeaveRoom={async () => {
+        if (user && roomId) {
+          try {
+            await leaveRoom(user.uid, roomId as string);
+          } catch (error) {
+            console.error('Error tracking room leave:', error);
+          }
+        }
+      }}
     />
   );
 }
