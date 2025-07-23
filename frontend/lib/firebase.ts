@@ -4,13 +4,13 @@ import { getFirestore, doc, collection, addDoc, updateDoc, deleteDoc, onSnapshot
 import { getAnalytics } from "firebase/analytics";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyB39qm8EN6MJQqIhKpLUSRLNKDhhTCE8aA",
-  authDomain: "typio-57fa9.firebaseapp.com",
-  projectId: "typio-57fa9",
-  storageBucket: "typio-57fa9.firebasestorage.app",
-  messagingSenderId: "172519754508",
-  appId: "1:172519754508:web:898f3afc8a28b21094d729",
-  measurementId: "G-FZRJ65M4FK"
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyB39qm8EN6MJQqIhKpLUSRLNKDhhTCE8aA",
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "typio-57fa9.firebaseapp.com",
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "typio-57fa9",
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "typio-57fa9.firebasestorage.app",
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "172519754508",
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "1:172519754508:web:898f3afc8a28b21094d729",
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || "G-FZRJ65M4FK"
 };
 
 // Initialize Firebase
