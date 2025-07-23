@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { useAuth } from '../../context/AuthContext';
-import { db, createJoinRequest, subscribeToJoinRequests, updateJoinRequestStatus, deleteJoinRequest, type JoinRequest } from '../../lib/firebase';
+import { db, createJoinRequest, subscribeToJoinRequests, updateJoinRequestStatus, deleteJoinRequest, sendOfficeInvitation, type JoinRequest, type OfficeInvitation } from '../../lib/firebase';
 import { doc, getDoc, setDoc, updateDoc, onSnapshot } from 'firebase/firestore';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -117,6 +117,12 @@ export default function Office() {
   const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
   const [showJoinRequests, setShowJoinRequests] = useState(false);
   const [pendingJoinRequest, setPendingJoinRequest] = useState<string | null>(null);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteMessage, setInviteMessage] = useState('');
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteSuccess, setInviteSuccess] = useState('');
+  const [inviteError, setInviteError] = useState('');
 
   // Office settings form
   const [officeSettings, setOfficeSettings] = useState({
@@ -313,6 +319,12 @@ export default function Office() {
     setIsEntering(true);
     localStorage.setItem('userName', userName.trim());
     
+    // Store office context for the room
+    localStorage.setItem('currentOfficeId', office.id);
+    if (isOwner) {
+      localStorage.setItem(`office_${office.id}_owner`, user.uid);
+    }
+    
     try {
       // Track room joining
       const selectedRoomData = office.rooms.find(r => r.id === selectedRoom);
@@ -332,7 +344,7 @@ export default function Office() {
     }
     
     setTimeout(() => {
-      router.push(`/room/${selectedRoom}`);
+      router.push(`/room/${selectedRoom}?officeId=${office.id}`);
     }, 1000);
   };
 
@@ -370,6 +382,47 @@ export default function Office() {
     } catch (error) {
       console.error('Error sending invitation:', error);
       setError('Failed to send invitation. Please try again.');
+    }
+  };
+
+  const handleSendInvitation = async () => {
+    if (!inviteEmail.trim() || !office || !user) return;
+    
+    setInviteLoading(true);
+    setInviteError(''); // Clear any previous errors
+    
+    try {
+      // Import Firebase functions
+      const { sendOfficeInvitation } = await import('../../lib/firebase');
+      
+      // Send invitation through Firestore
+      await sendOfficeInvitation({
+        officeId: office.id,
+        officeName: office.name,
+        inviterUid: user.uid,
+        inviterName: user.displayName || user.email || 'Unknown User',
+        inviterEmail: user.email || '',
+        inviteeEmail: inviteEmail.trim(),
+        message: inviteMessage.trim(),
+        createdAt: new Date().toISOString()
+      });
+      
+      setInviteSuccess(`Invitation sent to ${inviteEmail.trim()}. They will see it in their dashboard.`);
+      
+      // Auto-close after 3 seconds
+      setTimeout(() => {
+        setShowInviteModal(false);
+        setInviteEmail('');
+        setInviteMessage('');
+        setInviteSuccess('');
+        setInviteError('');
+      }, 3000);
+      
+    } catch (error: any) {
+      console.error('Error sending invitation:', error);
+      setInviteError(error.message || 'Failed to send invitation. Please try again.');
+    } finally {
+      setInviteLoading(false);
     }
   };
 
@@ -553,6 +606,39 @@ export default function Office() {
             gap: isMobile ? '8px' : '16px',
             flexWrap: 'wrap'
           }}>
+            {/* Invite Button for Owners */}
+            {isOwner && (
+              <button
+                onClick={() => setShowInviteModal(true)}
+                style={{
+                  padding: isMobile ? '8px 12px' : '10px 16px',
+                  background: 'linear-gradient(135deg, #0F9D58 0%, #00875A 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '20px',
+                  cursor: 'pointer',
+                  fontSize: isMobile ? '12px' : '14px',
+                  fontWeight: '700',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 0.3s ease',
+                  marginRight: isMobile ? '4px' : '8px'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                  e.currentTarget.style.boxShadow = '0 6px 20px rgba(15, 157, 88, 0.4)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              >
+                <span style={{ fontSize: '16px' }}>📧</span>
+                {!isMobile && 'Invite User'}
+              </button>
+            )}
+
             {/* Join Requests Badge */}
             {isOwner && joinRequests.length > 0 && (
               <button
@@ -1115,12 +1201,274 @@ export default function Office() {
           </div>
         )}
 
-        <style jsx>{`
-          @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-          }
-        `}</style>
+        {/* Invite User Modal */}
+        {showInviteModal && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            backdropFilter: 'blur(10px)',
+            padding: '20px'
+          }}>
+            <div style={{
+              width: '100%',
+              maxWidth: '500px',
+              backgroundColor: '#1F1F1F',
+              borderRadius: '20px',
+              border: '1px solid #333',
+              overflow: 'hidden'
+            }}>
+              {/* Header */}
+              <div style={{
+                padding: '24px',
+                borderBottom: '1px solid #333',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <div>
+                  <h2 style={{
+                    fontSize: '24px',
+                    fontWeight: '700',
+                    color: '#0F9D58',
+                    margin: 0
+                  }}>
+                    Invite User to Office
+                  </h2>
+                  <p style={{
+                    fontSize: '14px',
+                    color: 'rgba(255,255,255,0.7)',
+                    margin: '4px 0 0 0'
+                  }}>
+                    Send an invitation to join {office?.name}
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowInviteModal(false);
+                    setInviteEmail('');
+                    setInviteMessage('');
+                    setInviteSuccess('');
+                    setInviteError('');
+                  }}
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '50%',
+                    backgroundColor: '#DB4437',
+                    color: 'white',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: '16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Content */}
+              <div style={{ padding: '24px' }}>
+                {inviteSuccess ? (
+                  <div style={{
+                    textAlign: 'center',
+                    padding: '40px 20px'
+                  }}>
+                    <div style={{
+                      fontSize: '48px',
+                      marginBottom: '16px'
+                    }}>✅</div>
+                    <h3 style={{
+                      fontSize: '20px',
+                      fontWeight: '600',
+                      color: '#0F9D58',
+                      margin: '0 0 8px 0'
+                    }}>
+                      Invitation Sent!
+                    </h3>
+                    <p style={{
+                      color: 'rgba(255,255,255,0.7)',
+                      margin: 0
+                    }}>
+                      {inviteSuccess}
+                    </p>
+                  </div>
+                ) : inviteError ? (
+                  <div style={{
+                    textAlign: 'center',
+                    padding: '40px 20px'
+                  }}>
+                    <div style={{
+                      fontSize: '48px',
+                      marginBottom: '16px'
+                    }}>❌</div>
+                    <h3 style={{
+                      fontSize: '20px',
+                      fontWeight: '600',
+                      color: '#DB4437',
+                      margin: '0 0 8px 0'
+                    }}>
+                      Unable to Send Invitation
+                    </h3>
+                    <p style={{
+                      color: 'rgba(255,255,255,0.7)',
+                      margin: '0 0 20px 0',
+                      lineHeight: '1.5'
+                    }}>
+                      {inviteError}
+                    </p>
+                    <button
+                      onClick={() => {
+                        setInviteError('');
+                        setInviteEmail('');
+                        setInviteMessage('');
+                      }}
+                      style={{
+                        padding: '12px 24px',
+                        background: 'linear-gradient(135deg, #0F9D58 0%, #00875A 100%)',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '12px',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        transition: 'all 0.3s ease'
+                      }}
+                    >
+                      Try Again
+                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{ marginBottom: '20px' }}>
+                      <label style={{
+                        display: 'block',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        color: 'white',
+                        marginBottom: '8px'
+                      }}>
+                        Email Address *
+                      </label>
+                      <input
+                        type="email"
+                        value={inviteEmail}
+                        onChange={(e) => setInviteEmail(e.target.value)}
+                        placeholder="user@example.com"
+                        style={{
+                          width: '100%',
+                          padding: '12px 16px',
+                          backgroundColor: '#2A2A2A',
+                          border: '2px solid #444',
+                          borderRadius: '12px',
+                          fontSize: '16px',
+                          color: 'white',
+                          outline: 'none',
+                          boxSizing: 'border-box',
+                          transition: 'border-color 0.3s ease'
+                        }}
+                        onFocus={(e) => e.target.style.borderColor = '#0F9D58'}
+                        onBlur={(e) => e.target.style.borderColor = '#444'}
+                      />
+                    </div>
+
+                    <div style={{ marginBottom: '24px' }}>
+                      <label style={{
+                        display: 'block',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        color: 'white',
+                        marginBottom: '8px'
+                      }}>
+                        Personal Message (Optional)
+                      </label>
+                      <textarea
+                        value={inviteMessage}
+                        onChange={(e) => setInviteMessage(e.target.value)}
+                        placeholder="Join our team collaboration space..."
+                        rows={3}
+                        style={{
+                          width: '100%',
+                          padding: '12px 16px',
+                          backgroundColor: '#2A2A2A',
+                          border: '2px solid #444',
+                          borderRadius: '12px',
+                          fontSize: '14px',
+                          color: 'white',
+                          outline: 'none',
+                          resize: 'vertical',
+                          boxSizing: 'border-box',
+                          fontFamily: 'inherit',
+                          transition: 'border-color 0.3s ease'
+                        }}
+                        onFocus={(e) => e.target.style.borderColor = '#0F9D58'}
+                        onBlur={(e) => e.target.style.borderColor = '#444'}
+                      />
+                    </div>
+
+                    <button
+                      onClick={handleSendInvitation}
+                      disabled={!inviteEmail.trim() || inviteLoading}
+                      style={{
+                        width: '100%',
+                        padding: '16px',
+                        background: inviteEmail.trim() && !inviteLoading 
+                          ? 'linear-gradient(135deg, #0F9D58 0%, #00875A 100%)' 
+                          : '#666',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '12px',
+                        fontSize: '16px',
+                        fontWeight: '700',
+                        cursor: inviteEmail.trim() && !inviteLoading ? 'pointer' : 'not-allowed',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        transition: 'all 0.3s ease',
+                        opacity: inviteLoading ? 0.7 : 1
+                      }}
+                    >
+                      {inviteLoading ? (
+                        <>
+                          <div style={{
+                            width: '16px',
+                            height: '16px',
+                            border: '2px solid rgba(255,255,255,0.3)',
+                            borderTop: '2px solid white',
+                            borderRadius: '50%',
+                            animation: 'spin 1s linear infinite'
+                          }} />
+                          Sending Invitation...
+                        </>
+                      ) : (
+                        <>
+                          📧 Send Invitation
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <style jsx>{`
+              @keyframes spin {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+              }
+            `}</style>
+          </div>
+        )}
       </div>
     </>
   );

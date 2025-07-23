@@ -4,4 +4,5 @@ websockets==12.0
 python-multipart==0.0.6
 pydantic==2.6.1
 firebase-admin==6.4.0
-sendgrid==6.11.0 
+sendgrid==6.11.0
+pyrebase4==4.7.1 

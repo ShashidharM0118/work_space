@@ -8,12 +8,15 @@ import uuid
 from datetime import datetime
 try:
     import firebase_admin
-    from firebase_admin import credentials, firestore
+    from firebase_admin import credentials, firestore, db as firebase_db
+    import pyrebase
     FIREBASE_AVAILABLE = True
 except ImportError:
     firebase_admin = None
     credentials = None
     firestore = None
+    firebase_db = None
+    pyrebase = None
     FIREBASE_AVAILABLE = False
     print("⚠️  Firebase not available - running without Firebase integration")
 import os
@@ -35,18 +38,143 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize Firebase (optional, for future database integration)
+# Initialize Firebase with Realtime Database
+FIREBASE_INITIALIZED = False
+firebase_ref = None
+
 if FIREBASE_AVAILABLE:
     try:
         if not firebase_admin._apps:
+            # Initialize Firebase with Realtime Database URL
             # You can add Firebase credentials here if needed
             # cred = credentials.Certificate("path/to/serviceAccountKey.json")
-            # firebase_admin.initialize_app(cred)
-            pass
+            # firebase_admin.initialize_app(cred, {
+            #     'databaseURL': 'https://your-project-default-rtdb.firebaseio.com/'
+            # })
+            logger.info("Firebase Admin SDK ready (configure with credentials for full functionality)")
+        
+        # Try to get database reference (will work if properly configured)
+        try:
+            firebase_ref = firebase_db.reference('/')
+            FIREBASE_INITIALIZED = True
+            logger.info("✅ Firebase Realtime Database connected")
+        except Exception as db_error:
+            logger.warning(f"Firebase Realtime Database not configured: {db_error}")
+            
     except Exception as e:
         logger.warning(f"Firebase not initialized: {e}")
 else:
     logger.info("Firebase integration disabled - running in standalone mode")
+
+class FirebaseParticipantManager:
+    """Manages participant data in Firebase Realtime Database"""
+    
+    def __init__(self):
+        self.use_firebase = FIREBASE_INITIALIZED and firebase_ref is not None
+        self.fallback_data = {}  # Fallback to memory if Firebase unavailable
+        
+    async def add_participant(self, office_id: str, room_id: str, user_data: dict):
+        """Add participant to Firebase or fallback storage"""
+        try:
+            if self.use_firebase:
+                # Store in Firebase Realtime Database
+                participant_ref = firebase_ref.child('offices').child(office_id).child('rooms').child(room_id).child('participants').child(user_data['id'])
+                participant_ref.set({
+                    **user_data,
+                    'joined_at': user_data.get('joined_at', datetime.now().isoformat()),
+                    'last_seen': datetime.now().isoformat(),
+                    'office_id': office_id,
+                    'room_id': room_id
+                })
+                logger.info(f"✅ Added participant {user_data['name']} to Firebase: {office_id}/{room_id}")
+            else:
+                # Fallback to memory
+                if office_id not in self.fallback_data:
+                    self.fallback_data[office_id] = {}
+                if room_id not in self.fallback_data[office_id]:
+                    self.fallback_data[office_id][room_id] = {}
+                self.fallback_data[office_id][room_id][user_data['id']] = {
+                    **user_data,
+                    'joined_at': user_data.get('joined_at', datetime.now().isoformat()),
+                    'last_seen': datetime.now().isoformat(),
+                    'office_id': office_id,
+                    'room_id': room_id
+                }
+                logger.info(f"📝 Added participant {user_data['name']} to memory: {office_id}/{room_id}")
+        except Exception as e:
+            logger.error(f"❌ Failed to add participant: {e}")
+    
+    async def remove_participant(self, office_id: str, room_id: str, user_id: str):
+        """Remove participant from Firebase or fallback storage"""
+        try:
+            if self.use_firebase:
+                participant_ref = firebase_ref.child('offices').child(office_id).child('rooms').child(room_id).child('participants').child(user_id)
+                participant_ref.delete()
+                logger.info(f"🗑️ Removed participant {user_id} from Firebase: {office_id}/{room_id}")
+            else:
+                # Fallback to memory
+                if (office_id in self.fallback_data and 
+                    room_id in self.fallback_data[office_id] and 
+                    user_id in self.fallback_data[office_id][room_id]):
+                    del self.fallback_data[office_id][room_id][user_id]
+                    logger.info(f"🗑️ Removed participant {user_id} from memory: {office_id}/{room_id}")
+        except Exception as e:
+            logger.error(f"❌ Failed to remove participant: {e}")
+    
+    async def get_office_participants(self, office_id: str) -> dict:
+        """Get all participants in an office grouped by room"""
+        try:
+            if self.use_firebase:
+                office_ref = firebase_ref.child('offices').child(office_id).child('rooms')
+                office_data = office_ref.get()
+                
+                if not office_data:
+                    return {}
+                
+                rooms = {}
+                for room_id, room_data in office_data.items():
+                    participants = room_data.get('participants', {})
+                    # Convert dict to list and clean data
+                    rooms[room_id] = [
+                        {k: v for k, v in participant.items() if k != 'websocket'}
+                        for participant in participants.values()
+                    ] if participants else []
+                
+                return rooms
+            else:
+                # Fallback to memory
+                if office_id not in self.fallback_data:
+                    return {}
+                
+                rooms = {}
+                for room_id, participants in self.fallback_data[office_id].items():
+                    rooms[room_id] = [
+                        {k: v for k, v in participant.items() if k != 'websocket'}
+                        for participant in participants.values()
+                    ]
+                
+                return rooms
+        except Exception as e:
+            logger.error(f"❌ Failed to get office participants: {e}")
+            return {}
+    
+    async def update_participant_activity(self, office_id: str, room_id: str, user_id: str):
+        """Update participant's last seen timestamp"""
+        try:
+            if self.use_firebase:
+                participant_ref = firebase_ref.child('offices').child(office_id).child('rooms').child(room_id).child('participants').child(user_id)
+                participant_ref.child('last_seen').set(datetime.now().isoformat())
+            else:
+                # Fallback to memory
+                if (office_id in self.fallback_data and 
+                    room_id in self.fallback_data[office_id] and 
+                    user_id in self.fallback_data[office_id][room_id]):
+                    self.fallback_data[office_id][room_id][user_id]['last_seen'] = datetime.now().isoformat()
+        except Exception as e:
+            logger.error(f"❌ Failed to update participant activity: {e}")
+
+# Initialize Firebase participant manager
+firebase_participants = FirebaseParticipantManager()
 
 class ConnectionManager:
     """Stores active WebSocket connections grouped by room id"""
@@ -54,6 +182,9 @@ class ConnectionManager:
     def __init__(self):
         self.active_connections: Dict[str, List[WebSocket]] = {}
         self.room_participants: Dict[str, Dict[str, dict]] = {}  # room_id -> {user_id: user_info}
+        self.office_participants: Dict[str, Dict[str, dict]] = {}  # office_id -> {user_id: user_info}
+        self.user_to_office: Dict[str, str] = {}  # user_id -> office_id
+        self.user_to_room: Dict[str, str] = {}  # user_id -> room_id
 
     async def connect(self, room_id: str, websocket: WebSocket, user_info: dict = None):
         await websocket.accept()
@@ -62,11 +193,31 @@ class ConnectionManager:
         # Store user info
         if user_info:
             user_id = user_info.get('id', str(uuid.uuid4()))
+            office_id = user_info.get('office_id', 'default')
+            
+            # Store in room participants (local for WebSocket management)
             self.room_participants.setdefault(room_id, {})[user_id] = {
                 **user_info,
                 'websocket': websocket,
-                'joined_at': datetime.now().isoformat()
+                'joined_at': datetime.now().isoformat(),
+                'room_id': room_id
             }
+            
+            # Store in office participants (local for WebSocket management)
+            self.office_participants.setdefault(office_id, {})[user_id] = {
+                **user_info,
+                'websocket': websocket,
+                'joined_at': datetime.now().isoformat(),
+                'room_id': room_id,
+                'current_room': room_id
+            }
+            
+            # Update mappings
+            self.user_to_office[user_id] = office_id
+            self.user_to_room[user_id] = room_id
+            
+            # Store in Firebase Realtime Database
+            await firebase_participants.add_participant(office_id, room_id, user_info)
         
         logger.info(f"✅ New connection to room {room_id}. Total in room: {len(self.active_connections[room_id])}")
         
@@ -93,6 +244,15 @@ class ConnectionManager:
             
             if user_to_remove:
                 user_info = participants.pop(user_to_remove, {})
+                
+                # Remove from Firebase
+                office_id = self.user_to_office.get(user_to_remove, 'default')
+                asyncio.create_task(firebase_participants.remove_participant(office_id, room_id, user_to_remove))
+                
+                # Clean up mappings
+                self.user_to_office.pop(user_to_remove, None)
+                self.user_to_room.pop(user_to_remove, None)
+                
                 # Notify other participants about user leaving
                 if room:  # If there are still connections
                     asyncio.create_task(self.broadcast(room_id, {
@@ -131,6 +291,58 @@ class ConnectionManager:
             {k: v for k, v in user_data.items() if k != 'websocket'}
             for user_data in participants.values()
         ]
+    
+    def get_office_participants(self, office_id: str) -> Dict[str, List[dict]]:
+        """Get all participants in an office grouped by room"""
+        office_participants = self.office_participants.get(office_id, {})
+        rooms = {}
+        
+        for user_id, user_data in office_participants.items():
+            room_id = user_data.get('current_room', 'unknown')
+            if room_id not in rooms:
+                rooms[room_id] = []
+            
+            # Clean user data (remove websocket)
+            clean_user_data = {k: v for k, v in user_data.items() if k != 'websocket'}
+            rooms[room_id].append(clean_user_data)
+        
+        return rooms
+    
+    async def broadcast_to_office(self, office_id: str, message: dict, exclude_websocket: WebSocket = None):
+        """Broadcast message to all participants in an office"""
+        office_participants = self.office_participants.get(office_id, {})
+        
+        for user_data in office_participants.values():
+            websocket = user_data.get('websocket')
+            if websocket and websocket != exclude_websocket:
+                try:
+                    await websocket.send_json(message)
+                except Exception as e:
+                    logger.error(f"❌ Failed to send office message to connection: {e}")
+    
+    async def move_user_to_room(self, user_id: str, new_room_id: str):
+        """Move a user from one room to another while keeping office connection"""
+        if user_id not in self.user_to_office:
+            return False
+        
+        office_id = self.user_to_office[user_id]
+        old_room_id = self.user_to_room.get(user_id)
+        
+        # Update office participant record
+        if office_id in self.office_participants and user_id in self.office_participants[office_id]:
+            self.office_participants[office_id][user_id]['current_room'] = new_room_id
+            self.user_to_room[user_id] = new_room_id
+        
+        # Notify office participants about room change
+        await self.broadcast_to_office(office_id, {
+            'type': 'user_moved_room',
+            'user_id': user_id,
+            'from_room': old_room_id,
+            'to_room': new_room_id,
+            'office_participants': self.get_office_participants(office_id)
+        })
+        
+        return True
 
 manager = ConnectionManager()
 
@@ -169,6 +381,19 @@ async def get_room_participants(room_id: str):
         "room_id": room_id,
         "participants": participants,
         "count": len(participants)
+    }
+
+@app.get("/offices/{office_id}/participants")
+async def get_office_participants(office_id: str):
+    """Get all participants in an office grouped by room"""
+    rooms_with_participants = await firebase_participants.get_office_participants(office_id)
+    total_participants = sum(len(participants) for participants in rooms_with_participants.values())
+    
+    return {
+        "office_id": office_id,
+        "rooms": rooms_with_participants,
+        "total_participants": total_participants,
+        "active_rooms": len([room for room, participants in rooms_with_participants.items() if participants])
     }
 
 @app.post("/invite")
@@ -229,6 +454,8 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                 'avatar': initial_data.get('avatar', ''),
                 'firebaseUid': initial_data.get('firebaseUid', ''),
                 'displayName': initial_data.get('displayName', ''),
+                'office_id': initial_data.get('office_id', 'default'),
+                'role': initial_data.get('role', 'member'),
             }
             logger.info(f"👤 User {user_info['name']} (Firebase: {user_info['firebaseUid']}) joining room {room_id}")
     except Exception as e:
@@ -236,30 +463,15 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
         await websocket.close()
         return
     
-    # Add to connection manager
-    if room_id not in manager.active_connections:
-        manager.active_connections[room_id] = []
-    manager.active_connections[room_id].append(websocket)
+    # Use the proper connection manager with office tracking
+    await manager.connect(room_id, websocket, user_info)
     
     if user_info:
-        manager.room_participants.setdefault(room_id, {})[user_info['id']] = {
-            **user_info,
-            'websocket': websocket,
-            'joined_at': datetime.now().isoformat()
-        }
-        
         # Send current participants to new user
         await websocket.send_json({
             'type': 'participants_list',
             'participants': manager.get_room_participants(room_id)
         })
-        
-        # Notify others about new user
-        await manager.broadcast(room_id, {
-            'type': 'user_joined',
-            'user': user_info,
-            'participants_count': len(manager.room_participants.get(room_id, {}))
-        }, exclude_websocket=websocket)
     
     try:
         while True:

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { useAuth } from '../context/AuthContext';
-import { getRecentRooms, getOwnedOffices, subscribeToUserRooms, createOffice, sendEmailInvitation, type RoomMembership, type UserRooms } from '../lib/firebase';
+import { getRecentRooms, getOwnedOffices, getMemberOffices, subscribeToUserRooms, createOffice, sendEmailInvitation, getUserInvitations, getSentInvitations, cancelInvitation, respondToOfficeInvitation, type RoomMembership, type UserRooms } from '../lib/firebase';
 import { v4 as uuidv4 } from 'uuid';
 
 interface Office {
@@ -53,6 +53,334 @@ const defaultOffices: Office[] = [
   }
 ];
 
+// Sent Invitation Card Component
+const SentInvitationCard = ({ invitation, onCancel }: {
+  invitation: any;
+  onCancel: (invitationId: string) => void;
+}) => {
+  const [isCancelling, setIsCancelling] = useState(false);
+
+  const handleCancel = async () => {
+    setIsCancelling(true);
+    try {
+      await onCancel(invitation.id);
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending': return '#BF2600';
+      case 'accepted': return '#0F9D58';
+      case 'rejected': return '#DB4437';
+      case 'cancelled': return '#666';
+      default: return '#666';
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'pending': return 'PENDING';
+      case 'accepted': return 'ACCEPTED';
+      case 'rejected': return 'REJECTED';
+      case 'cancelled': return 'CANCELLED';
+      default: return 'UNKNOWN';
+    }
+  };
+
+  return (
+    <div style={{
+      padding: '20px',
+      backgroundColor: '#2A2A2A',
+      borderRadius: '16px',
+      border: '1px solid #444',
+      transition: 'all 0.3s ease'
+    }}>
+      {/* Invitation Info */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        marginBottom: '16px'
+      }}>
+        <div style={{ flex: 1 }}>
+          <h3 style={{
+            fontSize: '18px',
+            fontWeight: '700',
+            color: '#7B68EE',
+            margin: '0 0 4px 0'
+          }}>
+            {invitation.officeName}
+          </h3>
+          <p style={{
+            fontSize: '14px',
+            color: 'rgba(255,255,255,0.7)',
+            margin: '0 0 8px 0'
+          }}>
+            Sent to {invitation.inviteeEmail}
+          </p>
+          <p style={{
+            fontSize: '12px',
+            color: 'rgba(255,255,255,0.5)',
+            margin: 0
+          }}>
+            Sent {formatDate(invitation.createdAt)}
+          </p>
+        </div>
+        <div style={{
+          padding: '4px 8px',
+          backgroundColor: getStatusColor(invitation.status),
+          color: 'white',
+          borderRadius: '8px',
+          fontSize: '10px',
+          fontWeight: '600'
+        }}>
+          {getStatusText(invitation.status)}
+        </div>
+      </div>
+
+      {/* Message */}
+      {invitation.message && (
+        <div style={{
+          padding: '12px',
+          backgroundColor: 'rgba(255,255,255,0.05)',
+          borderRadius: '8px',
+          marginBottom: '16px'
+        }}>
+          <p style={{
+            fontSize: '14px',
+            color: 'rgba(255,255,255,0.8)',
+            margin: 0,
+            fontStyle: 'italic'
+          }}>
+            "{invitation.message}"
+          </p>
+        </div>
+      )}
+
+      {/* Action Button */}
+      {invitation.status === 'pending' && (
+        <button
+          onClick={handleCancel}
+          disabled={isCancelling}
+          style={{
+            padding: '12px 20px',
+            backgroundColor: isCancelling ? '#666' : '#DB4437',
+            color: 'white',
+            border: 'none',
+            borderRadius: '12px',
+            fontSize: '14px',
+            fontWeight: '600',
+            cursor: isCancelling ? 'not-allowed' : 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '6px',
+            transition: 'all 0.3s ease',
+            opacity: isCancelling ? 0.7 : 1
+          }}
+        >
+          {isCancelling ? (
+            <>
+              <div style={{
+                width: '12px',
+                height: '12px',
+                border: '2px solid rgba(255,255,255,0.3)',
+                borderTop: '2px solid white',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite'
+              }} />
+              Cancelling...
+            </>
+          ) : (
+            <>
+              🗑️ Cancel Invitation
+            </>
+          )}
+        </button>
+      )}
+    </div>
+  );
+};
+
+// Invitation Card Component
+const InvitationCard = ({ invitation, onRespond }: {
+  invitation: any;
+  onRespond: (invitationId: string, response: 'accepted' | 'rejected') => void;
+}) => {
+  const [isResponding, setIsResponding] = useState(false);
+
+  const handleResponse = async (response: 'accepted' | 'rejected') => {
+    setIsResponding(true);
+    try {
+      await onRespond(invitation.id, response);
+    } finally {
+      setIsResponding(false);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  return (
+    <div style={{
+      padding: '20px',
+      backgroundColor: '#2A2A2A',
+      borderRadius: '16px',
+      border: '1px solid #444',
+      transition: 'all 0.3s ease'
+    }}>
+      {/* Office Info */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        marginBottom: '16px'
+      }}>
+        <div style={{ flex: 1 }}>
+          <h3 style={{
+            fontSize: '18px',
+            fontWeight: '700',
+            color: '#0F9D58',
+            margin: '0 0 4px 0'
+          }}>
+            {invitation.officeName}
+          </h3>
+          <p style={{
+            fontSize: '14px',
+            color: 'rgba(255,255,255,0.7)',
+            margin: '0 0 8px 0'
+          }}>
+            Invited by {invitation.inviterName}
+          </p>
+          <p style={{
+            fontSize: '12px',
+            color: 'rgba(255,255,255,0.5)',
+            margin: 0
+          }}>
+            Received {formatDate(invitation.createdAt)}
+          </p>
+        </div>
+        <div style={{
+          padding: '4px 8px',
+          backgroundColor: '#BF2600',
+          color: 'white',
+          borderRadius: '8px',
+          fontSize: '10px',
+          fontWeight: '600'
+        }}>
+          PENDING
+        </div>
+      </div>
+
+      {/* Message */}
+      {invitation.message && (
+        <div style={{
+          padding: '12px',
+          backgroundColor: 'rgba(255,255,255,0.05)',
+          borderRadius: '8px',
+          marginBottom: '16px'
+        }}>
+          <p style={{
+            fontSize: '14px',
+            color: 'rgba(255,255,255,0.8)',
+            margin: 0,
+            fontStyle: 'italic'
+          }}>
+            "{invitation.message}"
+          </p>
+        </div>
+      )}
+
+      {/* Action Buttons */}
+      <div style={{
+        display: 'flex',
+        gap: '12px'
+      }}>
+        <button
+          onClick={() => handleResponse('accepted')}
+          disabled={isResponding}
+          style={{
+            flex: 1,
+            padding: '12px 20px',
+            background: isResponding ? '#666' : 'linear-gradient(135deg, #0F9D58 0%, #00875A 100%)',
+            color: 'white',
+            border: 'none',
+            borderRadius: '12px',
+            fontSize: '14px',
+            fontWeight: '600',
+            cursor: isResponding ? 'not-allowed' : 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '6px',
+            transition: 'all 0.3s ease',
+            opacity: isResponding ? 0.7 : 1
+          }}
+        >
+          {isResponding ? (
+            <>
+              <div style={{
+                width: '12px',
+                height: '12px',
+                border: '2px solid rgba(255,255,255,0.3)',
+                borderTop: '2px solid white',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite'
+              }} />
+              Processing...
+            </>
+          ) : (
+            <>
+              ✅ Accept
+            </>
+          )}
+        </button>
+        
+        <button
+          onClick={() => handleResponse('rejected')}
+          disabled={isResponding}
+          style={{
+            flex: 1,
+            padding: '12px 20px',
+            backgroundColor: isResponding ? '#666' : '#DB4437',
+            color: 'white',
+            border: 'none',
+            borderRadius: '12px',
+            fontSize: '14px',
+            fontWeight: '600',
+            cursor: isResponding ? 'not-allowed' : 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '6px',
+            transition: 'all 0.3s ease',
+            opacity: isResponding ? 0.7 : 1
+          }}
+        >
+          ❌ Decline
+        </button>
+      </div>
+    </div>
+  );
+};
+
 export default function Home() {
   const router = useRouter();
   const { user, signInWithGoogle, signOut } = useAuth();
@@ -73,8 +401,13 @@ export default function Home() {
   // Room management state
   const [recentRooms, setRecentRooms] = useState<RoomMembership[]>([]);
   const [ownedOffices, setOwnedOffices] = useState<string[]>([]);
+  const [memberOffices, setMemberOffices] = useState<string[]>([]);
   const [userRooms, setUserRooms] = useState<UserRooms | null>(null);
   const [showDashboard, setShowDashboard] = useState(true);
+  const [pendingInvitations, setPendingInvitations] = useState<any[]>([]);
+  const [showInvitations, setShowInvitations] = useState(false);
+  const [sentInvitations, setSentInvitations] = useState<any[]>([]);
+  const [showSentInvitations, setShowSentInvitations] = useState(false);
 
   // Invitation state
   const [inviteEmail, setInviteEmail] = useState('');
@@ -96,8 +429,14 @@ export default function Home() {
       try {
         const recent = await getRecentRooms(user.uid, 10);
         const owned = await getOwnedOffices(user.uid);
+        const member = await getMemberOffices(user.uid);
+        const invitations = await getUserInvitations(user.uid);
+        const sent = await getSentInvitations(user.uid);
         setRecentRooms(recent);
         setOwnedOffices(owned);
+        setMemberOffices(member);
+        setPendingInvitations(invitations);
+        setSentInvitations(sent);
       } catch (error) {
         console.error('Error loading user data:', error);
       }
@@ -551,6 +890,49 @@ export default function Home() {
     );
   }
 
+  // Handle invitation response
+  const handleInvitationResponse = async (invitationId: string, response: 'accepted' | 'rejected') => {
+    if (!user) return;
+    
+    try {
+      await respondToOfficeInvitation(invitationId, response, user.uid);
+      
+      // Refresh invitations list
+      const updatedInvitations = await getUserInvitations(user.uid);
+      setPendingInvitations(updatedInvitations);
+      
+      // Show success message
+      if (response === 'accepted') {
+        // Refresh user data to show new office access
+        const owned = await getOwnedOffices(user.uid);
+        const member = await getMemberOffices(user.uid);
+        setOwnedOffices(owned);
+        setMemberOffices(member);
+      }
+      
+    } catch (error: any) {
+      console.error('Error responding to invitation:', error);
+      setAuthError(error.message || 'Failed to respond to invitation');
+    }
+  };
+
+  // Handle cancelling sent invitations
+  const handleCancelInvitation = async (invitationId: string) => {
+    if (!user) return;
+    
+    try {
+      await cancelInvitation(invitationId);
+      
+      // Refresh sent invitations list
+      const updatedSentInvitations = await getSentInvitations(user.uid);
+      setSentInvitations(updatedSentInvitations);
+      
+    } catch (error: any) {
+      console.error('Error cancelling invitation:', error);
+      setAuthError(error.message || 'Failed to cancel invitation');
+    }
+  };
+
   return (
     <>
       <Head>
@@ -724,6 +1106,42 @@ export default function Home() {
               Create Office
             </button>
 
+            {/* Sent Invitations Button for owners */}
+            {sentInvitations.filter(inv => inv.status === 'pending').length > 0 && (
+              <button
+                onClick={() => setShowSentInvitations(true)}
+                style={{
+                  padding: '20px 40px',
+                  background: 'linear-gradient(135deg, #7B68EE 0%, #6A5ACD 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '28px',
+                  fontSize: '18px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  minWidth: '220px',
+                  justifyContent: 'center',
+                  position: 'relative',
+                  boxShadow: '0 20px 40px -12px rgba(123, 104, 238, 0.25)'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-4px)';
+                  e.currentTarget.style.boxShadow = '0 25px 50px -12px rgba(123, 104, 238, 0.35)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 20px 40px -12px rgba(123, 104, 238, 0.25)';
+                }}
+              >
+                <span style={{ fontSize: '20px' }}>📤</span>
+                {sentInvitations.filter(inv => inv.status === 'pending').length} Sent Invitation{sentInvitations.filter(inv => inv.status === 'pending').length !== 1 ? 's' : ''}
+              </button>
+            )}
+
             <button
               onClick={() => setShowOfficeSelect(true)}
               style={{
@@ -757,6 +1175,61 @@ export default function Home() {
               <span style={{ fontSize: '20px' }}>🏢</span>
               Browse Offices
             </button>
+
+
+
+            {/* Office Invitations Button */}
+            {pendingInvitations.length > 0 && (
+              <button
+                onClick={() => setShowInvitations(true)}
+                style={{
+                  padding: '20px 40px',
+                  background: 'linear-gradient(135deg, #0F9D58 0%, #00875A 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '28px',
+                  fontSize: '18px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  minWidth: '220px',
+                  justifyContent: 'center',
+                  position: 'relative',
+                  boxShadow: '0 20px 40px -12px rgba(15, 157, 88, 0.25)'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-4px)';
+                  e.currentTarget.style.boxShadow = '0 25px 50px -12px rgba(15, 157, 88, 0.35)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 20px 40px -12px rgba(15, 157, 88, 0.25)';
+                }}
+              >
+                <span style={{ fontSize: '20px' }}>📧</span>
+                {pendingInvitations.length} Invitation{pendingInvitations.length !== 1 ? 's' : ''}
+                <div style={{
+                  position: 'absolute',
+                  top: '-8px',
+                  right: '-8px',
+                  width: '24px',
+                  height: '24px',
+                  backgroundColor: '#DB4437',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  animation: 'pulse 2s infinite'
+                }}>
+                  {pendingInvitations.length}
+                </div>
+              </button>
+            )}
           </div>
 
           {/* Recent Rooms Section */}
@@ -902,6 +1375,79 @@ export default function Home() {
                     onMouseOut={(e) => {
                       e.currentTarget.style.transform = 'translateY(0)';
                       e.currentTarget.style.backgroundColor = '#0052CC20';
+                    }}
+                  >
+                    <div style={{ fontSize: '32px', marginBottom: '12px' }}>🏢</div>
+                    <h3 style={{
+                      fontSize: '16px',
+                      fontWeight: '700',
+                      color: 'white',
+                      margin: '0 0 8px 0'
+                    }}>
+                      Office
+                    </h3>
+                    <p style={{
+                      fontSize: '12px',
+                      color: 'rgba(255,255,255,0.7)',
+                      margin: 0,
+                      fontFamily: 'monospace'
+                    }}>
+                      {officeId.slice(0, 8)}...
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Member Offices Section */}
+          {memberOffices.length > 0 && (
+            <div style={{
+              marginBottom: '48px',
+              padding: '32px',
+              background: 'linear-gradient(135deg, rgba(15, 157, 88, 0.1) 0%, rgba(0, 135, 90, 0.05) 100%)',
+              borderRadius: '24px',
+              border: '1px solid rgba(15, 157, 88, 0.2)',
+              backdropFilter: 'blur(20px)'
+            }}>
+              <h2 style={{
+                fontSize: '24px',
+                fontWeight: '800',
+                color: 'white',
+                margin: '0 0 24px 0',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px'
+              }}>
+                <span style={{ fontSize: '28px' }}>🤝</span>
+                Joined Offices
+              </h2>
+              
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+                gap: '16px'
+              }}>
+                {memberOffices.map((officeId) => (
+                  <div
+                    key={officeId}
+                    onClick={() => router.push(`/office/${officeId}`)}
+                    style={{
+                      padding: '20px',
+                      background: 'linear-gradient(135deg, #0F9D5820 0%, #0F9D5810 100%)',
+                      borderRadius: '16px',
+                      border: '2px solid #0F9D58',
+                      cursor: 'pointer',
+                      transition: 'all 0.3s ease',
+                      textAlign: 'center'
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.backgroundColor = '#0F9D5830';
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.backgroundColor = '#0F9D5820';
                     }}
                   >
                     <div style={{ fontSize: '32px', marginBottom: '12px' }}>🏢</div>
@@ -1613,10 +2159,228 @@ export default function Home() {
           </div>
         )}
 
+        {/* Office Invitations Modal */}
+        {showInvitations && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            backdropFilter: 'blur(10px)',
+            padding: '20px'
+          }}>
+            <div style={{
+              width: '100%',
+              maxWidth: '600px',
+              maxHeight: '80vh',
+              backgroundColor: '#1F1F1F',
+              borderRadius: '20px',
+              border: '1px solid #333',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column'
+            }}>
+              {/* Header */}
+              <div style={{
+                padding: '24px',
+                borderBottom: '1px solid #333',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <div>
+                  <h2 style={{
+                    fontSize: '24px',
+                    fontWeight: '700',
+                    color: '#0F9D58',
+                    margin: 0
+                  }}>
+                    Office Invitations
+                  </h2>
+                  <p style={{
+                    fontSize: '14px',
+                    color: 'rgba(255,255,255,0.7)',
+                    margin: '4px 0 0 0'
+                  }}>
+                    {pendingInvitations.length} pending invitation{pendingInvitations.length !== 1 ? 's' : ''}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowInvitations(false)}
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '50%',
+                    backgroundColor: '#DB4437',
+                    color: 'white',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: '16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Content */}
+              <div style={{
+                flex: 1,
+                padding: '24px',
+                overflowY: 'auto'
+              }}>
+                {pendingInvitations.length === 0 ? (
+                  <div style={{
+                    textAlign: 'center',
+                    padding: '40px 20px',
+                    color: 'rgba(255,255,255,0.7)'
+                  }}>
+                    <div style={{ fontSize: '48px', marginBottom: '16px' }}>📫</div>
+                    <p>No pending invitations</p>
+                  </div>
+                ) : (
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '16px'
+                  }}>
+                    {pendingInvitations.map((invitation: any) => (
+                      <InvitationCard
+                        key={invitation.id}
+                        invitation={invitation}
+                        onRespond={handleInvitationResponse}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+                  )}
+
+        {/* Sent Invitations Modal */}
+        {showSentInvitations && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            backdropFilter: 'blur(10px)',
+            padding: '20px'
+          }}>
+            <div style={{
+              width: '100%',
+              maxWidth: '700px',
+              maxHeight: '80vh',
+              backgroundColor: '#1F1F1F',
+              borderRadius: '20px',
+              border: '1px solid #333',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column'
+            }}>
+              {/* Header */}
+              <div style={{
+                padding: '24px',
+                borderBottom: '1px solid #333',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <div>
+                  <h2 style={{
+                    fontSize: '24px',
+                    fontWeight: '700',
+                    color: '#7B68EE',
+                    margin: 0
+                  }}>
+                    Sent Invitations
+                  </h2>
+                  <p style={{
+                    fontSize: '14px',
+                    color: 'rgba(255,255,255,0.7)',
+                    margin: '4px 0 0 0'
+                  }}>
+                    Manage your office invitations
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowSentInvitations(false)}
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '50%',
+                    backgroundColor: '#DB4437',
+                    color: 'white',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: '16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Content */}
+              <div style={{
+                flex: 1,
+                padding: '24px',
+                overflowY: 'auto'
+              }}>
+                {sentInvitations.length === 0 ? (
+                  <div style={{
+                    textAlign: 'center',
+                    padding: '40px 20px',
+                    color: 'rgba(255,255,255,0.7)'
+                  }}>
+                    <div style={{ fontSize: '48px', marginBottom: '16px' }}>📤</div>
+                    <p>No invitations sent yet</p>
+                  </div>
+                ) : (
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '16px'
+                  }}>
+                    {sentInvitations.map((invitation: any) => (
+                      <SentInvitationCard
+                        key={invitation.id}
+                        invitation={invitation}
+                        onCancel={handleCancelInvitation}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         <style jsx>{`
           @keyframes spin {
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
+          }
+          @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
           }
         `}</style>
       </div>

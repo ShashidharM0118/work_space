@@ -56,6 +56,11 @@ export default function Room() {
   const [participants, setParticipants] = useState<any[]>([]);
   const [userName, setUserName] = useState('');
   const [isAuthChecking, setIsAuthChecking] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+  const [showChat, setShowChat] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
+  const [officeId, setOfficeId] = useState<string | null>(null);
+  const [showDashboard, setShowDashboard] = useState(false);
 
   // Whiteboard helpers
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -125,6 +130,51 @@ export default function Room() {
       }
     }
   }, [user]);
+
+  // Detect mobile device
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Check if user is owner and get office ID
+  useEffect(() => {
+    if (user && roomId) {
+      // Get office ID from URL params or localStorage
+      const urlParams = new URLSearchParams(window.location.search);
+      const officeIdFromUrl = urlParams.get('officeId');
+      const officeIdFromStorage = localStorage.getItem('currentOfficeId');
+      const currentOfficeId = officeIdFromUrl || officeIdFromStorage || 'default';
+      
+      setOfficeId(currentOfficeId);
+      
+      // Check if user is owner (could be stored in localStorage or passed from office page)
+      let ownerStatus = localStorage.getItem(`office_${currentOfficeId}_owner`) === user.uid;
+      
+      // Fallback: Check if this is the first user in the room (temporary for testing)
+      if (!ownerStatus && participants.length === 0) {
+        ownerStatus = true;
+        localStorage.setItem(`office_${currentOfficeId}_owner`, user.uid);
+      }
+      
+      setIsOwner(ownerStatus);
+      
+      // Debug logging
+      console.log('🔍 Owner Detection Debug:', {
+        userId: user.uid,
+        currentOfficeId,
+        storedOwner: localStorage.getItem(`office_${currentOfficeId}_owner`),
+        isOwner: ownerStatus,
+        officeIdFromUrl,
+        officeIdFromStorage
+      });
+    }
+  }, [user, roomId]);
 
   /* -------------------------------------------------- */
   // Simple Peer Helpers
@@ -497,7 +547,9 @@ export default function Room() {
             email: user?.email || '',
             avatar: user?.photoURL || '',
             firebaseUid: user?.uid || '',
-            displayName: user?.displayName || userName
+            displayName: user?.displayName || userName,
+            office_id: officeId || 'default',
+            role: isOwner ? 'owner' : 'member'
           };
           
           ws.send(JSON.stringify(userInfo));
@@ -634,8 +686,8 @@ export default function Room() {
         // Replace track for all peer connections
         peersRef.current.forEach(({ peer }) => {
           const videoTrack = screenStream.getVideoTracks()[0];
-          if (videoTrack && peer.streams && peer.streams[0]) {
-            peer.replaceTrack(peer.streams[0].getVideoTracks()[0], videoTrack, peer.streams[0]);
+          if (videoTrack && (peer as any).streams && (peer as any).streams[0]) {
+            (peer as any).replaceTrack((peer as any).streams[0].getVideoTracks()[0], videoTrack, (peer as any).streams[0]);
           }
         });
         
@@ -672,8 +724,8 @@ export default function Room() {
     // Replace track for all peer connections
     peersRef.current.forEach(({ peer }) => {
       const videoTrack = originalStream.getVideoTracks()[0];
-      if (videoTrack && peer.streams && peer.streams[0]) {
-        peer.replaceTrack(peer.streams[0].getVideoTracks()[0], videoTrack, peer.streams[0]);
+      if (videoTrack && (peer as any).streams && (peer as any).streams[0]) {
+        (peer as any).replaceTrack((peer as any).streams[0].getVideoTracks()[0], videoTrack, (peer as any).streams[0]);
       }
     });
     
@@ -717,7 +769,7 @@ export default function Room() {
       }
 
       return () => {
-        peer.removeListener('stream', handleStream);
+        (peer as any).removeListener('stream', handleStream);
       };
     }, [peer, peerId]);
     
@@ -726,13 +778,16 @@ export default function Room() {
     return (
       <div style={{
         position: 'relative',
-        width: '100%',
-        maxWidth: '300px',
         aspectRatio: '16/9',
-        backgroundColor: '#000',
-        borderRadius: '12px',
+        backgroundColor: '#1A4A3B',
+        borderRadius: isMobile ? '12px' : '16px',
         overflow: 'hidden',
-        border: '2px solid #5f6368'
+        border: `${isMobile ? '1px' : '2px'} solid #0F9D58`,
+        boxShadow: isMobile ? '0 2px 10px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.3)',
+        width: isMobile ? '100%' : '50%',
+        maxWidth: '100%',
+        minHeight: isMobile ? '200px' : '300px',
+        flex: isMobile ? '0 0 auto' : '1 1 0'
       }}>
         <video 
           ref={ref} 
@@ -751,28 +806,56 @@ export default function Room() {
             top: '50%',
             left: '50%',
             transform: 'translate(-50%, -50%)',
-            backgroundColor: 'rgba(0,0,0,0.9)',
+            backgroundColor: '#0F9D58',
             color: 'white',
-            padding: '12px 20px',
-            borderRadius: '8px',
-            textAlign: 'center',
-            fontSize: '14px'
+            width: '60px',
+            height: '60px',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '24px',
+            fontWeight: '600'
           }}>
-            📹 Connecting...
+            {(participant?.name || 'U').charAt(0).toUpperCase()}
           </div>
         )}
         <div style={{
           position: 'absolute',
-          bottom: '12px',
-          left: '12px',
+          bottom: '8px',
+          left: '8px',
           backgroundColor: 'rgba(0,0,0,0.8)',
           color: 'white',
           padding: '4px 8px',
           borderRadius: '16px',
           fontSize: '12px',
-          fontWeight: '500'
+          fontWeight: '500',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '4px',
+          maxWidth: 'calc(100% - 16px)'
         }}>
-          {participant?.name || 'Unknown User'}
+          <div style={{
+            width: '24px',
+            height: '24px',
+            borderRadius: '50%',
+            backgroundColor: '#0F9D58',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '12px',
+            fontWeight: '600',
+            flexShrink: 0
+          }}>
+            {(participant?.name || 'U').charAt(0).toUpperCase()}
+          </div>
+          <span style={{
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap'
+          }}>
+            {participant?.name?.split(' ')[0] || 'Unknown'}
+          </span>
         </div>
       </div>
     );
@@ -857,65 +940,170 @@ export default function Room() {
     }}>
       {/* Header */}
       <header style={{
-        padding: '12px 24px',
+        padding: isMobile ? '8px 16px' : '12px 24px',
         backgroundColor: '#1F1F1F',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        borderBottom: '1px solid #333'
+        borderBottom: '1px solid #333',
+        minHeight: isMobile ? '56px' : '64px'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '8px' : '16px', flex: 1, minWidth: 0 }}>
           <div style={{ 
-            fontSize: '24px',
+            fontSize: isMobile ? '16px' : '24px',
             fontWeight: '400',
-            color: '#E8EAED'
+            color: '#E8EAED',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap'
           }}>
-            {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} | {roomId}
+            {(() => {
+              // Extract simple room name from complex ID
+              let displayRoomId = roomId;
+              if (roomId && roomId.includes('room-')) {
+                const parts = roomId.split('room-');
+                if (parts.length > 1) {
+                  displayRoomId = parts[parts.length - 1];
+                }
+              }
+              
+              // Map common room IDs to friendly names
+              const roomNames: { [key: string]: string } = {
+                'main-hall': 'Main Hall',
+                'meeting-room-1': 'Meeting Room 1',
+                'meeting-room-2': 'Meeting Room 2', 
+                'breakout-room': 'Breakout Room'
+              };
+              
+              const friendlyName = roomNames[displayRoomId] || displayRoomId;
+              
+              return isMobile 
+                ? new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                : `${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} | ${friendlyName}`;
+            })()}
           </div>
+          {isMobile && (
+            <div style={{
+              padding: '4px 8px',
+              backgroundColor: isConnected ? '#0F9D58' : '#DB4437',
+              color: 'white',
+              borderRadius: '8px',
+              fontSize: '10px',
+              fontWeight: '500',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '3px'
+            }}>
+              <div style={{
+                width: '4px',
+                height: '4px',
+                borderRadius: '50%',
+                backgroundColor: 'white'
+              }} />
+              {participants.length + 1}
+            </div>
+          )}
         </div>
 
         <div style={{ 
           display: 'flex',
           alignItems: 'center',
-          gap: '8px'
+          gap: isMobile ? '6px' : '8px'
         }}>
-          <div style={{
-            padding: '6px 12px',
-            backgroundColor: isConnected ? '#0F9D58' : '#DB4437',
-            color: 'white',
-            borderRadius: '12px',
-            fontSize: '12px',
-            fontWeight: '500',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px'
-          }}>
+          {!isMobile && (
             <div style={{
-              width: '6px',
-              height: '6px',
-              borderRadius: '50%',
-              backgroundColor: 'white'
-            }} />
-            {connectionStatus}
+              padding: '6px 12px',
+              backgroundColor: isConnected ? '#0F9D58' : '#DB4437',
+              color: 'white',
+              borderRadius: '12px',
+              fontSize: '12px',
+              fontWeight: '500',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px'
+            }}>
+              <div style={{
+                width: '6px',
+                height: '6px',
+                borderRadius: '50%',
+                backgroundColor: 'white'
+              }} />
+              {connectionStatus}
+            </div>
+          )}
+
+          {/* Debug: Show owner status */}
+          <div style={{
+            padding: '4px 8px',
+            backgroundColor: isOwner ? '#6B46C1' : '#666',
+            color: 'white',
+            borderRadius: '8px',
+            fontSize: '10px',
+            fontWeight: '500'
+          }}>
+            {isOwner ? 'OWNER' : 'MEMBER'}
           </div>
+
+          {isOwner && (
+            <>
+              <button
+                onClick={() => router.push(`/office/${officeId}`)}
+                style={{
+                  padding: isMobile ? '6px 12px' : '8px 16px',
+                  backgroundColor: '#6B46C1',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: isMobile ? '16px' : '20px',
+                  cursor: 'pointer',
+                  fontSize: isMobile ? '12px' : '14px',
+                  fontWeight: '500',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: isMobile ? '4px' : '6px',
+                  marginRight: isMobile ? '4px' : '8px'
+                }}
+              >
+                🏢 {isMobile ? '' : 'Office'}
+              </button>
+              <button
+                onClick={() => setShowDashboard(true)}
+                style={{
+                  padding: isMobile ? '6px 12px' : '8px 16px',
+                  backgroundColor: '#0F9D58',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: isMobile ? '16px' : '20px',
+                  cursor: 'pointer',
+                  fontSize: isMobile ? '12px' : '14px',
+                  fontWeight: '500',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: isMobile ? '4px' : '6px',
+                  marginRight: isMobile ? '4px' : '8px'
+                }}
+              >
+                📊 {isMobile ? '' : 'Dashboard'}
+              </button>
+            </>
+          )}
 
           <button
             onClick={() => router.back()}
             style={{
-              padding: '8px 16px',
+              padding: isMobile ? '6px 12px' : '8px 16px',
               backgroundColor: '#DB4437',
               color: 'white',
               border: 'none',
-              borderRadius: '20px',
+              borderRadius: isMobile ? '16px' : '20px',
               cursor: 'pointer',
-              fontSize: '14px',
+              fontSize: isMobile ? '12px' : '14px',
               fontWeight: '500',
               display: 'flex',
               alignItems: 'center',
-              gap: '6px'
+              gap: isMobile ? '4px' : '6px'
             }}
           >
-            📞 End call
+            📞 {isMobile ? '' : 'End call'}
           </button>
         </div>
       </header>
@@ -935,27 +1123,34 @@ export default function Room() {
           flexDirection: 'column',
           justifyContent: 'center',
           alignItems: 'center',
-          padding: '20px',
-          gap: '16px'
+          padding: isMobile ? '12px 8px' : '20px',
+          gap: isMobile ? '12px' : '16px',
+          overflowY: isMobile ? 'auto' : 'hidden'
         }}>
           {!showWhiteboard ? (
             <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-              gap: '16px',
+              display: 'flex',
+              flexDirection: isMobile ? 'column' : 'row',
+              gap: isMobile ? '12px' : '16px',
               width: '100%',
-              maxWidth: '1200px',
-              justifyContent: 'center'
+              height: isMobile ? 'auto' : '100%',
+              maxWidth: '100%',
+              justifyContent: 'center',
+              alignItems: isMobile ? 'stretch' : 'stretch'
             }}>
               {/* My Video */}
               <div style={{
                 position: 'relative',
                 aspectRatio: '16/9',
                 backgroundColor: '#1A4A3B',
-                borderRadius: '16px',
+                borderRadius: isMobile ? '12px' : '16px',
                 overflow: 'hidden',
-                border: '2px solid #0F9D58',
-                boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
+                border: `${isMobile ? '1px' : '2px'} solid #0F9D58`,
+                boxShadow: isMobile ? '0 2px 10px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.3)',
+                width: isMobile ? '100%' : '50%',
+                maxWidth: '100%',
+                minHeight: isMobile ? '200px' : '300px',
+                flex: isMobile ? '0 0 auto' : '1 1 0'
               }}>
                 <video 
                   ref={myVideo} 
@@ -970,32 +1165,40 @@ export default function Room() {
                 />
                 <div style={{
                   position: 'absolute',
-                  bottom: '16px',
-                  left: '16px',
+                  bottom: isMobile ? '8px' : '16px',
+                  left: isMobile ? '8px' : '16px',
                   backgroundColor: 'rgba(0,0,0,0.8)',
                   color: 'white',
-                  padding: '6px 12px',
-                  borderRadius: '20px',
-                  fontSize: '14px',
+                  padding: isMobile ? '4px 8px' : '6px 12px',
+                  borderRadius: isMobile ? '16px' : '20px',
+                  fontSize: isMobile ? '12px' : '14px',
                   fontWeight: '500',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '6px'
+                  gap: isMobile ? '4px' : '6px',
+                  maxWidth: isMobile ? 'calc(100% - 16px)' : 'auto'
                 }}>
                   <div style={{
-                    width: '32px',
-                    height: '32px',
+                    width: isMobile ? '24px' : '32px',
+                    height: isMobile ? '24px' : '32px',
                     borderRadius: '50%',
                     backgroundColor: '#0F9D58',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: '16px',
-                    fontWeight: '600'
+                    fontSize: isMobile ? '12px' : '16px',
+                    fontWeight: '600',
+                    flexShrink: 0
                   }}>
                     {userName.charAt(0).toUpperCase()}
                   </div>
-                  {userName} {isScreenSharing ? '(Screen)' : ''}
+                  <span style={{
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    {isMobile ? userName.split(' ')[0] : userName} {isScreenSharing ? '(Screen)' : ''}
+                  </span>
                 </div>
                 {!streamRef.current?.getVideoTracks()[0]?.enabled && (
                   <div style={{
@@ -1005,13 +1208,13 @@ export default function Room() {
                     transform: 'translate(-50%, -50%)',
                     backgroundColor: '#0F9D58',
                     color: 'white',
-                    width: '80px',
-                    height: '80px',
+                    width: isMobile ? '60px' : '80px',
+                    height: isMobile ? '60px' : '80px',
                     borderRadius: '50%',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: '36px',
+                    fontSize: isMobile ? '24px' : '36px',
                     fontWeight: '600'
                   }}>
                     {userName.charAt(0).toUpperCase()}
@@ -1020,7 +1223,6 @@ export default function Room() {
               </div>
 
               {/* Other participants */}
-              {console.log('🎥 Rendering peers:', peers.length, 'participants:', participants.length)}
               {peers.map(({ id, peer }) => {
                 console.log('🎥 Rendering peer video for:', id);
                 return <PeerVideo key={id} peer={peer} peerId={id} />;
@@ -1114,221 +1316,641 @@ export default function Room() {
         </div>
 
         {/* Chat Panel */}
-        <div style={{
-          width: '300px',
-          backgroundColor: '#202124',
-          borderLeft: '1px solid #5f6368',
-          display: 'flex',
-          flexDirection: 'column'
-        }}>
+        {showChat && (
           <div style={{
-            padding: '16px',
-            borderBottom: '1px solid #5f6368',
-            fontWeight: '600',
-            fontSize: '16px'
-          }}>
-            Chat
-          </div>
-          
-          <div style={{
-            flex: 1,
-            padding: '16px',
-            overflowY: 'auto',
+            position: isMobile ? 'fixed' : 'relative',
+            top: isMobile ? '0' : 'auto',
+            left: isMobile ? '0' : 'auto',
+            right: isMobile ? '0' : 'auto',
+            bottom: isMobile ? '0' : 'auto',
+            width: isMobile ? '100%' : '300px',
+            height: isMobile ? '100vh' : 'auto',
+            backgroundColor: '#202124',
+            borderLeft: isMobile ? 'none' : '1px solid #5f6368',
             display: 'flex',
             flexDirection: 'column',
-            gap: '8px'
+            zIndex: isMobile ? 1000 : 'auto'
           }}>
-            {messages.map((msg, idx) => (
-              <div key={idx} style={{
-                padding: '8px 12px',
-                backgroundColor: msg.sender === myId.current ? '#0052CC' : '#3c4043',
-                borderRadius: '12px',
-                fontSize: '14px',
-                wordBreak: 'break-word'
-              }}>
-                <div style={{ fontWeight: '600', marginBottom: '2px' }}>
-                  {msg.sender === myId.current ? 'You' : (participants.find(p => p.id === msg.sender)?.name || 'Unknown')}
-                </div>
-                <div>{msg.text}</div>
-                {msg.timestamp && (
-                  <div style={{ fontSize: '11px', opacity: 0.7, marginTop: '2px' }}>
-                    {msg.timestamp}
+            <div style={{
+              padding: isMobile ? '16px 16px 12px 16px' : '16px',
+              borderBottom: '1px solid #5f6368',
+              fontWeight: '600',
+              fontSize: '16px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <span>Chat</span>
+              <button
+                onClick={() => setShowChat(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'white',
+                  fontSize: '20px',
+                  cursor: 'pointer',
+                  padding: '4px'
+                }}
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div style={{
+              flex: 1,
+              padding: '16px',
+              overflowY: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px'
+            }}>
+              {messages.map((msg, idx) => (
+                <div key={idx} style={{
+                  padding: '8px 12px',
+                  backgroundColor: msg.sender === myId.current ? '#0F9D58' : '#3c4043',
+                  borderRadius: '12px',
+                  fontSize: '14px',
+                  wordBreak: 'break-word'
+                }}>
+                  <div style={{ fontWeight: '600', marginBottom: '2px' }}>
+                    {msg.sender === myId.current ? 'You' : (participants.find(p => p.id === msg.sender)?.name || 'Unknown')}
                   </div>
-                )}
-              </div>
-            ))}
+                  <div>{msg.text}</div>
+                  {msg.timestamp && (
+                    <div style={{ fontSize: '11px', opacity: 0.7, marginTop: '2px' }}>
+                      {msg.timestamp}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+            
+            <div style={{
+              padding: '16px',
+              borderTop: '1px solid #5f6368',
+              display: 'flex',
+              gap: '8px',
+              paddingBottom: isMobile ? '24px' : '16px'
+            }}>
+              <input
+                type="text"
+                value={newMsg}
+                onChange={(e) => setNewMsg(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                placeholder="Type a message..."
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  backgroundColor: '#3c4043',
+                  border: '1px solid #5f6368',
+                  borderRadius: '8px',
+                  color: 'white',
+                  fontSize: '14px',
+                  outline: 'none'
+                }}
+              />
+              <button
+                onClick={sendMessage}
+                disabled={!newMsg.trim()}
+                style={{
+                  padding: '12px 16px',
+                  backgroundColor: newMsg.trim() ? '#0F9D58' : '#5f6368',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: newMsg.trim() ? 'pointer' : 'not-allowed',
+                  fontSize: '14px',
+                  fontWeight: '500'
+                }}
+              >
+                Send
+              </button>
+            </div>
           </div>
-          
-          <div style={{
-            padding: '16px',
-            borderTop: '1px solid #5f6368',
-            display: 'flex',
-            gap: '8px'
-          }}>
-            <input
-              type="text"
-              value={newMsg}
-              onChange={(e) => setNewMsg(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-              placeholder="Type a message..."
-              style={{
-                flex: 1,
-                padding: '8px 12px',
-                backgroundColor: '#3c4043',
-                border: '1px solid #5f6368',
-                borderRadius: '8px',
-                color: 'white',
-                fontSize: '14px',
-                outline: 'none'
-              }}
-            />
-            <button
-              onClick={sendMessage}
-              disabled={!newMsg.trim()}
-              style={{
-                padding: '8px 12px',
-                backgroundColor: newMsg.trim() ? '#0052CC' : '#5f6368',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: newMsg.trim() ? 'pointer' : 'not-allowed',
-                fontSize: '14px'
-              }}
-            >
-              Send
-            </button>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Controls */}
       <div style={{
-        padding: '16px 24px',
-        backgroundColor: 'rgba(255,255,255,0.05)',
-        backdropFilter: 'blur(20px)',
-        borderTop: '1px solid rgba(255,255,255,0.1)',
+        position: 'absolute',
+        bottom: isMobile ? '20px' : '24px',
+        left: '50%',
+        transform: 'translateX(-50%)',
         display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        gap: '12px',
-        flexWrap: 'wrap'
+        gap: isMobile ? '8px' : '12px',
+        backgroundColor: 'rgba(0,0,0,0.8)',
+        padding: isMobile ? '8px 12px' : '12px 20px',
+        borderRadius: '50px',
+        backdropFilter: 'blur(20px)',
+        border: '1px solid rgba(255,255,255,0.1)',
+        zIndex: 100
       }}>
-        <div style={{ 
-          display: 'flex', 
-          gap: '8px',
-          justifyContent: 'center',
-          flex: 1
-        }}>
-          {/* Microphone */}
-          <button 
-            onClick={() => {
-              if (streamRef.current) {
-                const audioTrack = streamRef.current.getAudioTracks()[0];
-                if (audioTrack) {
-                  audioTrack.enabled = !audioTrack.enabled;
-                  setPeers([...peersRef.current || []]);
-                }
+        {/* Microphone */}
+        <button 
+          onClick={() => {
+            if (streamRef.current) {
+              const audioTrack = streamRef.current.getAudioTracks()[0];
+              if (audioTrack) {
+                audioTrack.enabled = !audioTrack.enabled;
+                setPeers([...peersRef.current || []]);
               }
-            }}
-            disabled={!streamRef.current}
-            style={{
-              width: '48px',
-              height: '48px',
-              borderRadius: '50%',
-              backgroundColor: streamRef.current?.getAudioTracks()[0]?.enabled !== false ? '#3c4043' : '#d93025',
-              color: 'white',
-              border: 'none',
-              cursor: 'pointer',
-              fontSize: '20px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'all 0.2s ease'
-            }}
-            title={streamRef.current?.getAudioTracks()[0]?.enabled !== false ? 'Mute' : 'Unmute'}
-          >
-            {streamRef.current?.getAudioTracks()[0]?.enabled !== false ? '🎤' : '🔇'}
-          </button>
+            }
+          }}
+          disabled={!streamRef.current}
+          style={{
+            width: isMobile ? '48px' : '56px',
+            height: isMobile ? '48px' : '56px',
+            borderRadius: '50%',
+            backgroundColor: streamRef.current?.getAudioTracks()[0]?.enabled !== false ? '#3C4043' : '#EA4335',
+            color: 'white',
+            border: 'none',
+            cursor: 'pointer',
+            fontSize: isMobile ? '20px' : '24px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'all 0.2s ease',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+          }}
+          title={streamRef.current?.getAudioTracks()[0]?.enabled !== false ? 'Mute microphone' : 'Unmute microphone'}
+        >
+          {streamRef.current?.getAudioTracks()[0]?.enabled !== false ? '🎤' : '🔇'}
+        </button>
 
-          {/* Camera */}
-          <button 
-            onClick={() => {
-              if (streamRef.current) {
-                const videoTrack = streamRef.current.getVideoTracks()[0];
-                if (videoTrack) {
-                  videoTrack.enabled = !videoTrack.enabled;
-                  setPeers([...peersRef.current || []]);
-                }
+        {/* Camera */}
+        <button 
+          onClick={() => {
+            if (streamRef.current) {
+              const videoTrack = streamRef.current.getVideoTracks()[0];
+              if (videoTrack) {
+                videoTrack.enabled = !videoTrack.enabled;
+                setPeers([...peersRef.current || []]);
               }
-            }}
-            disabled={!streamRef.current}
-            style={{
-              width: '48px',
-              height: '48px',
-              borderRadius: '50%',
-              backgroundColor: streamRef.current?.getVideoTracks()[0]?.enabled !== false ? '#3c4043' : '#d93025',
-              color: 'white',
-              border: 'none',
-              cursor: 'pointer',
-              fontSize: '20px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'all 0.2s ease'
-            }}
-            title={streamRef.current?.getVideoTracks()[0]?.enabled !== false ? 'Turn off camera' : 'Turn on camera'}
-          >
-            {streamRef.current?.getVideoTracks()[0]?.enabled !== false ? '📹' : '📷'}
-          </button>
+            }
+          }}
+          disabled={!streamRef.current}
+          style={{
+            width: isMobile ? '48px' : '56px',
+            height: isMobile ? '48px' : '56px',
+            borderRadius: '50%',
+            backgroundColor: streamRef.current?.getVideoTracks()[0]?.enabled !== false ? '#3C4043' : '#EA4335',
+            color: 'white',
+            border: 'none',
+            cursor: 'pointer',
+            fontSize: isMobile ? '20px' : '24px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'all 0.2s ease',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+          }}
+          title={streamRef.current?.getVideoTracks()[0]?.enabled !== false ? 'Turn off camera' : 'Turn on camera'}
+        >
+          {streamRef.current?.getVideoTracks()[0]?.enabled !== false ? '📹' : '📷'}
+        </button>
 
-          {/* Screen Share */}
+        {/* Screen Share */}
+        {!isMobile && (
           <button 
             onClick={toggleScreenShare}
             disabled={!streamRef.current}
             style={{
-              width: '48px',
-              height: '48px',
+              width: '56px',
+              height: '56px',
               borderRadius: '50%',
-              backgroundColor: isScreenSharing ? '#1a73e8' : '#3c4043',
+              backgroundColor: isScreenSharing ? '#0F9D58' : '#3C4043',
               color: 'white',
               border: 'none',
               cursor: 'pointer',
-              fontSize: '20px',
+              fontSize: '24px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              transition: 'all 0.2s ease'
+              transition: 'all 0.2s ease',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
             }}
-            title={isScreenSharing ? 'Stop sharing' : 'Share screen'}
+            title={isScreenSharing ? 'Stop sharing screen' : 'Present now'}
           >
             🖥️
           </button>
+        )}
 
-          {/* Whiteboard */}
-          <button 
-            onClick={() => setShowWhiteboard(!showWhiteboard)}
-            style={{
-              width: '48px',
-              height: '48px',
-              borderRadius: '50%',
-              backgroundColor: showWhiteboard ? '#1a73e8' : '#3c4043',
-              color: 'white',
-              border: 'none',
-              cursor: 'pointer',
-              fontSize: '20px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'all 0.2s ease'
-            }}
-            title={showWhiteboard ? 'Hide whiteboard' : 'Show whiteboard'}
-          >
-            🎨
-          </button>
-        </div>
+        {/* Chat Toggle */}
+        <button 
+          onClick={() => setShowChat(!showChat)}
+          style={{
+            width: isMobile ? '48px' : '56px',
+            height: isMobile ? '48px' : '56px',
+            borderRadius: '50%',
+            backgroundColor: showChat ? '#0F9D58' : '#3C4043',
+            color: 'white',
+            border: 'none',
+            cursor: 'pointer',
+            fontSize: isMobile ? '20px' : '24px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'all 0.2s ease',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+          }}
+          title={showChat ? 'Hide chat' : 'Show chat'}
+        >
+          💬
+        </button>
+
+        {/* More Options */}
+        <button 
+          style={{
+            width: isMobile ? '48px' : '56px',
+            height: isMobile ? '48px' : '56px',
+            borderRadius: '50%',
+            backgroundColor: '#3C4043',
+            color: 'white',
+            border: 'none',
+            cursor: 'pointer',
+            fontSize: isMobile ? '20px' : '24px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'all 0.2s ease',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+          }}
+          title="More options"
+        >
+          ⋯
+        </button>
       </div>
+
+      {/* Office Dashboard Modal */}
+      {showDashboard && (
+        <OfficeDashboard 
+          officeId={officeId || 'default'}
+          onClose={() => setShowDashboard(false)}
+          currentRoomId={roomId}
+          isMobile={isMobile}
+        />
+      )}
     </div>
   );
 }
+
+// Office Dashboard Component
+const OfficeDashboard = ({ officeId, onClose, currentRoomId, isMobile }: {
+  officeId: string;
+  onClose: () => void;
+  currentRoomId: string;
+  isMobile: boolean;
+}) => {
+  const [officeData, setOfficeData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchOfficeData = async () => {
+      try {
+        const baseUrl = process.env.NEXT_PUBLIC_BACKEND_WS_URL || 'http://localhost:8000';
+        const wsUrl = baseUrl.replace('wss:', 'https:').replace('ws:', 'http:');
+        
+        const response = await fetch(`${wsUrl}/offices/${officeId}/participants`);
+        const data = await response.json();
+        setOfficeData(data);
+        console.log('📊 Dashboard data received:', data);
+      } catch (error) {
+        console.error('Failed to fetch office data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOfficeData();
+    
+    // Refresh every 3 seconds for real-time feel
+    const interval = setInterval(fetchOfficeData, 3000);
+    return () => clearInterval(interval);
+  }, [officeId]);
+
+  const getRoomName = (roomId: string) => {
+    const roomNames: { [key: string]: string } = {
+      'main-hall': 'Main Hall',
+      'meeting-room-1': 'Meeting Room 1',
+      'meeting-room-2': 'Meeting Room 2',
+      'breakout-room': 'Breakout Room'
+    };
+    return roomNames[roomId] || roomId;
+  };
+
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0,0,0,0.9)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 2000,
+      backdropFilter: 'blur(10px)',
+      padding: '20px'
+    }}>
+      <div style={{
+        width: '100%',
+        maxWidth: isMobile ? '100%' : '800px',
+        maxHeight: '90vh',
+        backgroundColor: '#1F1F1F',
+        borderRadius: '16px',
+        border: '1px solid #333',
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column'
+      }}>
+        {/* Header */}
+        <div style={{
+          padding: '20px',
+          borderBottom: '1px solid #333',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          <div>
+            <h2 style={{
+              fontSize: isMobile ? '20px' : '24px',
+              fontWeight: '700',
+              color: '#0F9D58',
+              margin: 0
+            }}>
+              Office Dashboard
+            </h2>
+            <p style={{
+              fontSize: '14px',
+              color: 'rgba(255,255,255,0.7)',
+              margin: '4px 0 0 0'
+            }}>
+              Real-time participant overview
+            </p>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              onClick={() => {
+                onClose();
+                window.open(`/office/${officeId}`, '_blank');
+              }}
+              style={{
+                padding: '8px 12px',
+                backgroundColor: '#6B46C1',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '12px',
+                fontWeight: '500',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+            >
+              🏢 {isMobile ? '' : 'Office View'}
+            </button>
+            <button
+              onClick={onClose}
+              style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '50%',
+                backgroundColor: '#DB4437',
+                color: 'white',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div style={{
+          flex: 1,
+          padding: '20px',
+          overflowY: 'auto'
+        }}>
+          {loading ? (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: '200px',
+              flexDirection: 'column',
+              gap: '16px'
+            }}>
+              <div style={{
+                width: '40px',
+                height: '40px',
+                border: '4px solid rgba(255,255,255,0.2)',
+                borderTop: '4px solid #0F9D58',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite'
+              }} />
+              <p style={{ color: 'rgba(255,255,255,0.7)' }}>Loading office data...</p>
+            </div>
+          ) : officeData ? (
+            <div>
+              {/* Statistics */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3, 1fr)',
+                gap: '16px',
+                marginBottom: '24px'
+              }}>
+                <div style={{
+                  padding: '16px',
+                  backgroundColor: '#0F9D58',
+                  borderRadius: '12px',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '24px', fontWeight: '700', color: 'white' }}>
+                    {officeData.total_participants}
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.9)' }}>
+                    Total Online
+                  </div>
+                </div>
+                <div style={{
+                  padding: '16px',
+                  backgroundColor: '#00875A',
+                  borderRadius: '12px',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '24px', fontWeight: '700', color: 'white' }}>
+                    {officeData.active_rooms}
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.9)' }}>
+                    Active Rooms
+                  </div>
+                </div>
+                {!isMobile && (
+                  <div style={{
+                    padding: '16px',
+                    backgroundColor: '#BF2600',
+                    borderRadius: '12px',
+                    textAlign: 'center'
+                  }}>
+                    <div style={{ fontSize: '24px', fontWeight: '700', color: 'white' }}>
+                      {Object.keys(officeData.rooms).length}
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.9)' }}>
+                      Total Rooms
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Rooms */}
+              <h3 style={{
+                fontSize: '18px',
+                fontWeight: '600',
+                color: 'white',
+                margin: '0 0 16px 0'
+              }}>
+                Room Participants
+              </h3>
+
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px'
+              }}>
+                {(Object.entries(officeData.rooms as Record<string, any[]>)).map(([roomId, participants]) => (
+                  <div
+                    key={roomId}
+                    style={{
+                      padding: '16px',
+                      backgroundColor: roomId === currentRoomId ? 'rgba(15, 157, 88, 0.2)' : '#2A2A2A',
+                      borderRadius: '12px',
+                      border: roomId === currentRoomId ? '1px solid #0F9D58' : '1px solid #444'
+                    }}
+                  >
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: participants.length > 0 ? '12px' : '0'
+                    }}>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}>
+                        <h4 style={{
+                          fontSize: '16px',
+                          fontWeight: '600',
+                          color: 'white',
+                          margin: 0
+                        }}>
+                          {getRoomName(roomId)}
+                        </h4>
+                        {roomId === currentRoomId && (
+                          <span style={{
+                            padding: '2px 8px',
+                            backgroundColor: '#0F9D58',
+                            color: 'white',
+                            borderRadius: '8px',
+                            fontSize: '10px',
+                            fontWeight: '600'
+                          }}>
+                            CURRENT
+                          </span>
+                        )}
+                      </div>
+                      <span style={{
+                        padding: '4px 8px',
+                        backgroundColor: participants.length > 0 ? '#0F9D58' : '#666',
+                        color: 'white',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                        fontWeight: '600'
+                      }}>
+                        {participants.length}
+                      </span>
+                    </div>
+
+                    {participants.length > 0 && (
+                      <div style={{
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: '8px'
+                      }}>
+                        {participants.map((participant: any) => (
+                          <div
+                            key={participant.id}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              padding: '6px 10px',
+                              backgroundColor: 'rgba(255,255,255,0.1)',
+                              borderRadius: '16px',
+                              fontSize: '12px'
+                            }}
+                          >
+                            <div style={{
+                              width: '20px',
+                              height: '20px',
+                              borderRadius: '50%',
+                              backgroundColor: participant.role === 'owner' ? '#BF2600' : '#0F9D58',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '10px',
+                              fontWeight: '600',
+                              color: 'white'
+                            }}>
+                              {participant.name.charAt(0).toUpperCase()}
+                            </div>
+                            <span style={{ color: 'white', fontWeight: '500' }}>
+                              {participant.name}
+                            </span>
+                            {participant.role === 'owner' && (
+                              <span style={{
+                                fontSize: '10px',
+                                color: '#BF2600',
+                                fontWeight: '600'
+                              }}>
+                                OWNER
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div style={{
+              textAlign: 'center',
+              color: 'rgba(255,255,255,0.7)',
+              padding: '40px'
+            }}>
+              Failed to load office data
+            </div>
+          )}
+        </div>
+      </div>
+
+      <style jsx>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
+    </div>
+  );
+};
 
  

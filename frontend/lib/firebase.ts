@@ -275,6 +275,23 @@ export const getOwnedOffices = async (userId: string): Promise<string[]> => {
   }
 };
 
+export const getMemberOffices = async (userId: string): Promise<string[]> => {
+  try {
+    const userOfficesRef = doc(db, 'userOffices', userId);
+    const userOfficesSnap = await getDoc(userOfficesRef);
+    
+    if (userOfficesSnap.exists()) {
+      const data = userOfficesSnap.data();
+      return data.memberOffices || [];
+    }
+    
+    return [];
+  } catch (error) {
+    console.error('Error getting member offices:', error);
+    return [];
+  }
+};
+
 export const subscribeToUserRooms = (userId: string, callback: (userRooms: UserRooms | null) => void) => {
   const userRoomsRef = doc(db, 'userRooms', userId);
   
@@ -623,6 +640,265 @@ export const deleteJoinRequest = async (requestId: string) => {
     await deleteDoc(requestRef);
   } catch (error) {
     console.error('Error deleting join request:', error);
+    throw error;
+  }
+};
+
+// Office Invitation System
+export interface OfficeInvitation {
+  officeId: string;
+  officeName: string;
+  inviterUid: string;
+  inviterName: string;
+  inviterEmail: string;
+  inviteeEmail: string;
+  inviteeUid?: string;
+  message?: string;
+  createdAt: string;
+  status?: 'pending' | 'accepted' | 'rejected' | 'expired';
+  expiresAt?: string;
+}
+
+export const sendOfficeInvitation = async (invitation: OfficeInvitation) => {
+  try {
+    // Check if invitee exists in users collection
+    const usersRef = collection(db, 'users');
+    const userQuery = query(usersRef, where('email', '==', invitation.inviteeEmail));
+    const userSnapshot = await getDocs(userQuery);
+    
+    if (userSnapshot.empty) {
+      throw new Error('User with this email is not registered. Please ask them to sign up at the website first, then try sending the invitation again.');
+    }
+    
+    const inviteeUser = userSnapshot.docs[0];
+    const inviteeUid = inviteeUser.id;
+    
+    // Check for existing pending invitation
+    const invitationsRef = collection(db, 'officeInvitations');
+    const existingQuery = query(
+      invitationsRef,
+      where('officeId', '==', invitation.officeId),
+      where('inviteeEmail', '==', invitation.inviteeEmail),
+      where('status', '==', 'pending')
+    );
+    const existingSnapshot = await getDocs(existingQuery);
+    
+    if (!existingSnapshot.empty) {
+      throw new Error('A pending invitation already exists for this user.');
+    }
+    
+    // Create invitation document
+    const invitationData = {
+      ...invitation,
+      inviteeUid,
+      status: 'pending' as const,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days
+    };
+    
+    const invitationRef = await addDoc(invitationsRef, invitationData);
+    
+    // Add to invitee's notifications
+    const notificationData = {
+      type: 'office_invitation',
+      title: `Office Invitation: ${invitation.officeName}`,
+      message: `${invitation.inviterName} invited you to join their office`,
+      data: {
+        invitationId: invitationRef.id,
+        officeId: invitation.officeId,
+        officeName: invitation.officeName,
+        inviterName: invitation.inviterName
+      },
+      userId: inviteeUid,
+      createdAt: new Date().toISOString(),
+      read: false
+    };
+    
+    await addDoc(collection(db, 'notifications'), notificationData);
+    
+    console.log('Office invitation sent:', invitationRef.id);
+    return invitationRef.id;
+  } catch (error) {
+    console.error('Error sending office invitation:', error);
+    throw error;
+  }
+};
+
+export const getUserInvitations = async (userUid: string) => {
+  try {
+    // Get user's email
+    const userDoc = await getDoc(doc(db, 'users', userUid));
+    const userEmail = userDoc.exists() ? userDoc.data().email : null;
+    
+    const invitationsRef = collection(db, 'officeInvitations');
+    
+    // Query by both UID and email to catch all invitations
+    const queries = [
+      query(invitationsRef, where('inviteeUid', '==', userUid), where('status', '==', 'pending'))
+    ];
+    
+    if (userEmail) {
+      queries.push(
+        query(invitationsRef, where('inviteeEmail', '==', userEmail), where('status', '==', 'pending'))
+      );
+    }
+    
+    const allInvitations = [];
+    for (const q of queries) {
+      const snapshot = await getDocs(q);
+      const invitations = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      allInvitations.push(...invitations);
+    }
+    
+    // Remove duplicates
+    const uniqueInvitations = allInvitations.filter((invitation, index, arr) => 
+      arr.findIndex(inv => inv.id === invitation.id) === index
+    ) as (OfficeInvitation & { id: string })[];
+    
+    return uniqueInvitations;
+  } catch (error) {
+    console.error('Error fetching user invitations:', error);
+    return []; // Return empty array instead of throwing
+  }
+};
+
+export const getSentInvitations = async (userUid: string) => {
+  try {
+    const invitationsRef = collection(db, 'officeInvitations');
+    const sentQuery = query(
+      invitationsRef,
+      where('inviterUid', '==', userUid)
+    );
+    
+    const snapshot = await getDocs(sentQuery);
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    })) as (OfficeInvitation & { id: string })[];
+  } catch (error) {
+    console.error('Error fetching sent invitations:', error);
+    return [];
+  }
+};
+
+export const cancelInvitation = async (invitationId: string) => {
+  try {
+    const invitationRef = doc(db, 'officeInvitations', invitationId);
+    await updateDoc(invitationRef, {
+      status: 'cancelled'
+    });
+    console.log('Invitation cancelled:', invitationId);
+  } catch (error) {
+    console.error('Error cancelling invitation:', error);
+    throw error;
+  }
+};
+
+export const respondToOfficeInvitation = async (
+  invitationId: string,
+  response: 'accepted' | 'rejected',
+  userUid: string
+) => {
+  try {
+    const invitationRef = doc(db, 'officeInvitations', invitationId);
+    const invitationSnap = await getDoc(invitationRef);
+    
+    if (!invitationSnap.exists()) {
+      throw new Error('Invitation not found');
+    }
+    
+    const invitation = invitationSnap.data() as OfficeInvitation;
+    
+    if (invitation.inviteeUid !== userUid) {
+      throw new Error('Unauthorized to respond to this invitation');
+    }
+    
+    // Update invitation status
+    await updateDoc(invitationRef, {
+      status: response,
+      respondedAt: new Date().toISOString()
+    });
+    
+    if (response === 'accepted') {
+      // Grant office access - add user to office members
+      const userOfficesRef = doc(db, 'userOffices', userUid);
+      const userOfficesSnap = await getDoc(userOfficesRef);
+      
+      if (userOfficesSnap.exists()) {
+        const userOffices = userOfficesSnap.data();
+        const memberOffices = userOffices.memberOffices || [];
+        
+        if (!memberOffices.includes(invitation.officeId)) {
+          await updateDoc(userOfficesRef, {
+            memberOffices: [...memberOffices, invitation.officeId],
+            lastUpdatedAt: new Date().toISOString()
+          });
+        }
+      } else {
+        await setDoc(userOfficesRef, {
+          userId: userUid,
+          memberOffices: [invitation.officeId],
+          ownedOffices: [],
+          createdAt: new Date().toISOString(),
+          lastUpdatedAt: new Date().toISOString()
+        });
+      }
+      
+      // Add success notification
+      await addDoc(collection(db, 'notifications'), {
+        type: 'office_access_granted',
+        title: 'Office Access Granted',
+        message: `You now have access to ${invitation.officeName}`,
+        data: {
+          officeId: invitation.officeId,
+          officeName: invitation.officeName
+        },
+        userId: userUid,
+        createdAt: new Date().toISOString(),
+        read: false
+      });
+    }
+    
+    console.log(`Invitation ${response}:`, invitationId);
+    return true;
+  } catch (error) {
+    console.error('Error responding to invitation:', error);
+    throw error;
+  }
+};
+
+export const getUserNotifications = async (userUid: string) => {
+  try {
+    const notificationsRef = collection(db, 'notifications');
+    const userQuery = query(
+      notificationsRef,
+      where('userId', '==', userUid),
+      orderBy('createdAt', 'desc'),
+      limit(20)
+    );
+    
+    const snapshot = await getDocs(userQuery);
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    throw error;
+  }
+};
+
+export const markNotificationAsRead = async (notificationId: string) => {
+  try {
+    const notificationRef = doc(db, 'notifications', notificationId);
+    await updateDoc(notificationRef, {
+      read: true,
+      readAt: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error marking notification as read:', error);
     throw error;
   }
 }; 
