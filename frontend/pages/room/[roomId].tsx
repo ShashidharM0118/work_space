@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import Peer from 'simple-peer';
 import { v4 as uuidv4 } from 'uuid';
+import RoomInterface from '../../components/RoomInterface';
 
 interface ChatMsg {
   id: string;
@@ -31,6 +32,9 @@ export default function Room() {
   const [connectionStatus, setConnectionStatus] = useState('Connecting...');
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [originalStream, setOriginalStream] = useState<MediaStream | null>(null);
+  const [showWhiteboard, setShowWhiteboard] = useState(false);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [lastPosition, setLastPosition] = useState({ x: 0, y: 0 });
 
   /* -------------------------------------------------- */
   // Helpers
@@ -40,6 +44,104 @@ export default function Room() {
       ? `ws://localhost:8000/ws/${roomId}`  // Local development
       : `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/ws/${roomId}`  // Remote/ngrok
     : '';
+
+  // Whiteboard helpers
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  
+  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    setIsDrawing(true);
+    setLastPosition({ x, y });
+  };
+  
+  const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDrawing || !canvasRef.current) return;
+    
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    // Draw line
+    ctx.beginPath();
+    ctx.moveTo(lastPosition.x, lastPosition.y);
+    ctx.lineTo(x, y);
+    ctx.strokeStyle = '#2196F3';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+    
+    // Send drawing data to other participants
+    const drawData = {
+      type: 'draw',
+      id: myId.current,
+      from: lastPosition,
+      to: { x, y },
+      color: '#2196F3',
+      width: 2
+    };
+    
+    console.log('📤 Sending drawing data:', drawData);
+    socketRef.current?.send(JSON.stringify(drawData));
+    
+    setLastPosition({ x, y });
+  };
+  
+  const stopDrawing = () => {
+    setIsDrawing(false);
+  };
+  
+  const clearWhiteboard = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Send clear command to other participants
+    const clearData = {
+      type: 'clear',
+      id: myId.current
+    };
+    
+    console.log('📤 Sending clear command:', clearData);
+    socketRef.current?.send(JSON.stringify(clearData));
+  };
+  
+  const handleRemoteDrawing = (drawData: any) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    console.log('🎨 Processing remote drawing:', drawData);
+    
+    if (drawData.type === 'draw') {
+      ctx.beginPath();
+      ctx.moveTo(drawData.from.x, drawData.from.y);
+      ctx.lineTo(drawData.to.x, drawData.to.y);
+      ctx.strokeStyle = drawData.color || '#2196F3';
+      ctx.lineWidth = drawData.width || 2;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+      console.log('✅ Drew line from', drawData.from, 'to', drawData.to);
+    } else if (drawData.type === 'clear') {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      console.log('✅ Cleared whiteboard');
+    }
+  };
 
   // Screen sharing helpers
   const startScreenShare = async () => {
@@ -286,6 +388,11 @@ export default function Room() {
         console.log('💬 Chat message from:', msg.id);
         setMessages((prev) => [...prev, { id: msg.id, text: msg.text }]);
         break;
+      case 'draw':
+      case 'clear':
+        console.log('🎨 Whiteboard action from:', msg.id, msg.type);
+        handleRemoteDrawing(msg);
+        break;
     }
   };
 
@@ -366,6 +473,22 @@ export default function Room() {
       }
     };
   }, [roomId]);
+
+  // Initialize canvas when whiteboard is shown
+  useEffect(() => {
+    if (showWhiteboard && canvasRef.current) {
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        // Set up canvas drawing properties
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = '#2196F3';
+        ctx.lineWidth = 2;
+        console.log('🎨 Canvas initialized for whiteboard');
+      }
+    }
+  }, [showWhiteboard]);
 
   /* -------------------------------------------------- */
   // Chat helpers
@@ -482,381 +605,36 @@ export default function Room() {
 
   /* -------------------------------------------------- */
   return (
-    <div style={{ padding: 16, fontFamily: 'Arial, sans-serif' }}>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2>Room: {roomId}</h2>
-        <div style={{ 
-          padding: '8px 16px', 
-          borderRadius: 4, 
-          backgroundColor: isConnected ? '#4CAF50' : '#f44336',
-          color: 'white',
-          fontSize: '14px'
-        }}>
-          {connectionStatus}
-        </div>
-      </div>
-
-      <div style={{ marginBottom: 16 }}>
-        <button 
-          onClick={testConnections}
-          style={{
-            padding: '4px 8px',
-            backgroundColor: '#9E9E9E',
-            color: 'white',
-            border: 'none',
-            borderRadius: 4,
-            fontSize: '12px',
-            cursor: 'pointer'
-          }}
-        >
-          🔍 Test Connections (Check Console)
-        </button>
-        <button 
-          onClick={forceReconnect}
-          disabled={!isConnected}
-          style={{
-            padding: '4px 8px',
-            backgroundColor: '#FF9800',
-            color: 'white',
-            border: 'none',
-            borderRadius: 4,
-            fontSize: '12px',
-            cursor: isConnected ? 'pointer' : 'not-allowed',
-            marginLeft: 8
-          }}
-        >
-          🔄 Force Reconnect
-        </button>
-        <button 
-          onClick={ensureBidirectionalStreaming}
-          disabled={!isConnected || peers.length === 0}
-          style={{
-            padding: '4px 8px',
-            backgroundColor: '#4CAF50',
-            color: 'white',
-            border: 'none',
-            borderRadius: 4,
-            fontSize: '12px',
-            cursor: isConnected && peers.length > 0 ? 'pointer' : 'not-allowed',
-            marginLeft: 8
-          }}
-        >
-          🔁 Fix Streaming
-        </button>
-        <span style={{ marginLeft: 8, fontSize: '12px', color: '#666' }}>
-          Connected peers: {peers.length}
-        </span>
-      </div>
-
-      {/* Media Controls */}
-      <div style={{ marginBottom: 16, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <button 
-          onClick={isScreenSharing ? stopScreenShare : startScreenShare}
-          disabled={!isConnected}
-          style={{
-            padding: '8px 16px',
-            backgroundColor: isScreenSharing ? '#f44336' : '#4CAF50',
-            color: 'white',
-            border: 'none',
-            borderRadius: 4,
-            cursor: isConnected ? 'pointer' : 'not-allowed',
-            fontSize: '14px'
-          }}
-        >
-          {isScreenSharing ? '🔄 Stop Sharing' : '🖥️ Share Screen'}
-        </button>
-        
-        <button 
-          onClick={() => {
-            if (streamRef.current) {
-              const videoTrack = streamRef.current.getVideoTracks()[0];
-              if (videoTrack) {
-                videoTrack.enabled = !videoTrack.enabled;
-                // Force re-render to update button text
-                setPeers([...peersRef.current]);
-              }
-            }
-          }}
-          disabled={!streamRef.current}
-          style={{
-            padding: '8px 16px',
-            backgroundColor: streamRef.current?.getVideoTracks()[0]?.enabled !== false ? '#2196F3' : '#9E9E9E',
-            color: 'white',
-            border: 'none',
-            borderRadius: 4,
-            cursor: 'pointer',
-            fontSize: '14px'
-          }}
-        >
-          {streamRef.current?.getVideoTracks()[0]?.enabled !== false ? '📹 Camera On' : '📹 Camera Off'}
-        </button>
-        
-        <button 
-          onClick={() => {
-            if (streamRef.current) {
-              const audioTrack = streamRef.current.getAudioTracks()[0];
-              if (audioTrack) {
-                audioTrack.enabled = !audioTrack.enabled;
-                // Force re-render to update button text
-                setPeers([...peersRef.current]);
-              }
-            }
-          }}
-          disabled={!streamRef.current}
-          style={{
-            padding: '8px 16px',
-            backgroundColor: streamRef.current?.getAudioTracks()[0]?.enabled !== false ? '#2196F3' : '#9E9E9E',
-            color: 'white',
-            border: 'none',
-            borderRadius: 4,
-            cursor: 'pointer',
-            fontSize: '14px'
-          }}
-        >
-          {streamRef.current?.getAudioTracks()[0]?.enabled !== false ? '🎤 Mic On' : '🎤 Mic Off'}
-        </button>
-      </div>
-
-      {mediaError && (
-        <div style={{ 
-          backgroundColor: '#ffebee', 
-          border: '1px solid #f44336',
-          padding: 16,
-          borderRadius: 4,
-          marginBottom: 16,
-          color: '#d32f2f'
-        }}>
-          ⚠️ {mediaError}
-        </div>
-      )}
-
-      {/* Video grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16, marginBottom: 24 }}>
-        <div style={{ position: 'relative' }}>
-          <video 
-            ref={myVideo} 
-            autoPlay 
-            playsInline 
-            style={{ width: '100%', borderRadius: 8, backgroundColor: '#000' }} 
-          />
-          <div style={{
-            position: 'absolute',
-            bottom: 8,
-            left: 8,
-            backgroundColor: 'rgba(0,0,0,0.7)',
-            color: 'white',
-            padding: '4px 8px',
-            borderRadius: 4,
-            fontSize: '12px'
-          }}>
-            You {isScreenSharing ? '(Screen)' : '(Camera)'}
-          </div>
-          {!streamRef.current?.getVideoTracks()[0]?.enabled && (
-            <div style={{
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              backgroundColor: 'rgba(0,0,0,0.8)',
-              color: 'white',
-              padding: '8px 16px',
-              borderRadius: 4,
-              textAlign: 'center'
-            }}>
-              📹 Camera Off
-            </div>
-          )}
-          {!streamRef.current?.getAudioTracks()[0]?.enabled && (
-            <div style={{
-              position: 'absolute',
-              top: 8,
-              right: 8,
-              backgroundColor: 'rgba(255,0,0,0.8)',
-              color: 'white',
-              padding: '4px 8px',
-              borderRadius: 4,
-              fontSize: '12px'
-            }}>
-              🔇 Muted
-            </div>
-          )}
-        </div>
-        {peers.map(({ id }) => (
-          <RemoteVideo 
-            key={id} 
-            peer={peersRef.current.find((p) => p.id === id)?.peer}
-            peerId={id}
-          />
-        ))}
-      </div>
-
-      {/* Chat */}
-      <div>
-        <h3>Chat</h3>
-        <div style={{ 
-          height: 200, 
-          overflowY: 'auto', 
-          border: '1px solid #ddd', 
-          padding: 12,
-          borderRadius: 4,
-          backgroundColor: '#fafafa',
-          marginBottom: 8
-        }}>
-          {messages.map((m, i) => (
-            <div key={i} style={{ marginBottom: 8 }}>
-              <strong>{m.id === myId.current ? 'Me' : m.id.slice(0, 5)}: </strong>
-              {m.text}
-            </div>
-          ))}
-        </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <input
-            value={newMsg}
-            onChange={(e) => setNewMsg(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && sendChat()}
-            placeholder="Type a message..."
-            disabled={!isConnected}
-            style={{ 
-              flex: 1, 
-              padding: 8, 
-              border: '1px solid #ddd',
-              borderRadius: 4
-            }}
-          />
-          <button 
-            onClick={sendChat}
-            disabled={!isConnected || !newMsg.trim()}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: isConnected ? '#2196F3' : '#ccc',
-              color: 'white',
-              border: 'none',
-              borderRadius: 4,
-              cursor: isConnected ? 'pointer' : 'not-allowed'
-            }}
-          >
-            Send
-          </button>
-        </div>
-      </div>
-    </div>
+    <RoomInterface
+      roomId={roomId}
+      peers={peers}
+      messages={messages}
+      newMsg={newMsg}
+      isConnected={isConnected}
+      mediaError={mediaError}
+      connectionStatus={connectionStatus}
+      isScreenSharing={isScreenSharing}
+      showWhiteboard={showWhiteboard}
+      myVideo={myVideo}
+      canvasRef={canvasRef}
+      streamRef={streamRef}
+      peersRef={peersRef}
+      myId={myId}
+      setNewMsg={setNewMsg}
+      setShowWhiteboard={setShowWhiteboard}
+      setPeers={setPeers}
+      sendChat={sendChat}
+      startScreenShare={startScreenShare}
+      stopScreenShare={stopScreenShare}
+      clearWhiteboard={clearWhiteboard}
+      startDrawing={startDrawing}
+      draw={draw}
+      stopDrawing={stopDrawing}
+      testConnections={testConnections}
+      forceReconnect={forceReconnect}
+      ensureBidirectionalStreaming={ensureBidirectionalStreaming}
+    />
   );
 }
 
-/* --------------------- Remote Video Component -------------------- */
-function RemoteVideo({ peer, peerId }: { peer: Peer.Instance | undefined; peerId: string }) {
-  const ref = useRef<HTMLVideoElement>(null);
-  const [hasStream, setHasStream] = useState(false);
-  const [streamInfo, setStreamInfo] = useState('');
-  const [isRemoteScreenShare, setIsRemoteScreenShare] = useState(false);
-
-  useEffect(() => {
-    if (!peer) return;
-    
-    console.log('🔧 Setting up remote video for peer:', peerId);
-    
-    peer.on('stream', (stream) => {
-      console.log('📹 Received video stream from:', peerId);
-      console.log('📹 Stream tracks:', stream.getTracks().map(t => `${t.kind}: ${t.enabled}`));
-      
-      const videoTracks = stream.getVideoTracks();
-      const audioTracks = stream.getAudioTracks();
-      setStreamInfo(`Video: ${videoTracks.length}, Audio: ${audioTracks.length}`);
-      
-      // Detect if it's a screen share (screen shares typically have different characteristics)
-      if (videoTracks.length > 0) {
-        const videoTrack = videoTracks[0];
-        // Screen shares often have 'screen' in the label or different constraints
-        const isScreenShare = videoTrack.label.toLowerCase().includes('screen') || 
-                             videoTrack.label.toLowerCase().includes('display') ||
-                             videoTrack.getSettings?.().displaySurface === 'monitor';
-        setIsRemoteScreenShare(isScreenShare);
-        console.log('🖥️ Remote screen share detected:', isScreenShare, 'Label:', videoTrack.label);
-      }
-      
-      if (ref.current) {
-        ref.current.srcObject = stream;
-        setHasStream(true);
-        
-        // Ensure the video element plays
-        ref.current.play().catch(err => {
-          console.error('❌ Failed to play remote video:', err);
-        });
-      }
-    });
-    
-    peer.on('connect', () => {
-      console.log('✅ Peer data channel connected:', peerId);
-    });
-    
-    peer.on('error', (err) => {
-      console.error('❌ Remote peer error:', peerId, err);
-      setStreamInfo('Error: ' + err.message);
-    });
-    
-    return () => {
-      console.log('🧹 Cleaning up remote video for:', peerId);
-    };
-  }, [peer]);
-
-  return (
-    <div style={{ position: 'relative' }}>
-      <video 
-        ref={ref} 
-        autoPlay 
-        playsInline 
-        controls={false}
-        style={{ 
-          width: '100%', 
-          borderRadius: 8, 
-          backgroundColor: '#000',
-          minHeight: '200px'
-        }} 
-      />
-      {/* Screen share indicator */}
-      {isRemoteScreenShare && (
-        <div style={{
-          position: 'absolute',
-          top: 8,
-          left: 8,
-          backgroundColor: 'rgba(76, 175, 80, 0.9)',
-          color: 'white',
-          padding: '4px 8px',
-          borderRadius: 4,
-          fontSize: '11px',
-          fontWeight: 'bold'
-        }}>
-          🖥️ SCREEN
-        </div>
-      )}
-      <div style={{
-        position: 'absolute',
-        bottom: 8,
-        left: 8,
-        backgroundColor: 'rgba(0,0,0,0.7)',
-        color: 'white',
-        padding: '4px 8px',
-        borderRadius: 4,
-        fontSize: '12px'
-      }}>
-        {peerId.slice(0, 8)} {isRemoteScreenShare ? '(Screen)' : '(Camera)'}
-        {streamInfo && <div style={{ fontSize: '10px' }}>{streamInfo}</div>}
-      </div>
-      {!hasStream && (
-        <div style={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          color: 'white',
-          textAlign: 'center'
-        }}>
-          🔗 Connecting...
-          <div style={{ fontSize: '12px', marginTop: 4 }}>
-            Waiting for stream from {peerId.slice(0, 8)}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-} 
+ 
