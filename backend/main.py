@@ -6,21 +6,10 @@ import json
 import logging
 import uuid
 from datetime import datetime
-try:
-    import firebase_admin
-    from firebase_admin import credentials, firestore, db as firebase_db
-    import pyrebase
-    FIREBASE_AVAILABLE = True
-except ImportError:
-    firebase_admin = None
-    credentials = None
-    firestore = None
-    firebase_db = None
-    pyrebase = None
-    FIREBASE_AVAILABLE = False
-    print("⚠️  Firebase not available - running without Firebase integration")
+import firebase_admin
+from firebase_admin import credentials, firestore, db as firebase_db
+import pyrebase
 import os
-import asyncio
 import asyncio
 
 # Configure logging
@@ -47,29 +36,24 @@ async def health_check():
 FIREBASE_INITIALIZED = False
 firebase_ref = None
 
-if FIREBASE_AVAILABLE:
+try:
+    # Initialize Firebase Admin SDK
+    cred = credentials.Certificate("serviceAccountKey.json")
+    firebase_admin.initialize_app(cred, {
+        'databaseURL': 'https://typio-57fa9.firebaseio.com'
+    })
+    logger.info("Firebase Admin SDK initialized successfully")
+    
+    # Try to get database reference (will work if properly configured)
     try:
-        if not firebase_admin._apps:
-            # Initialize Firebase with Realtime Database URL
-            # You can add Firebase credentials here if needed
-            # cred = credentials.Certificate("path/to/serviceAccountKey.json")
-            # firebase_admin.initialize_app(cred, {
-            #     'databaseURL': 'https://your-project-default-rtdb.firebaseio.com/'
-            # })
-            logger.info("Firebase Admin SDK ready (configure with credentials for full functionality)")
+        firebase_ref = firebase_db.reference('/')
+        FIREBASE_INITIALIZED = True
+        logger.info("✅ Firebase Realtime Database connected")
+    except Exception as db_error:
+        logger.warning(f"Firebase Realtime Database not configured: {db_error}")
         
-        # Try to get database reference (will work if properly configured)
-        try:
-            firebase_ref = firebase_db.reference('/')
-            FIREBASE_INITIALIZED = True
-            logger.info("✅ Firebase Realtime Database connected")
-        except Exception as db_error:
-            logger.warning(f"Firebase Realtime Database not configured: {db_error}")
-            
-    except Exception as e:
-        logger.warning(f"Firebase not initialized: {e}")
-else:
-    logger.info("Firebase integration disabled - running in standalone mode")
+except Exception as e:
+    logger.warning(f"Firebase not initialized: {e}")
 
 class FirebaseParticipantManager:
     """Manages participant data in Firebase Realtime Database"""
@@ -499,4 +483,4 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000) 
+    uvicorn.run(app, host="0.0.0.0", port=8000)
