@@ -9,7 +9,7 @@ NexOffice is a premium virtual office platform that transforms remote work exper
 - **🎨 Collaborative Whiteboard** - Interactive whiteboard for brainstorming and planning
 - **💬 Real-time Messaging** - Instant chat with rich media support
 - **🏢 Virtual Office Spaces** - Customizable virtual environments for teams
-- **🔒 Enterprise Security** - End-to-end encryption and secure authentication
+- **🔐 OAuth Integrated** - Seamless authentication with popular OAuth providers
 - **📊 Activity Analytics** - Track team productivity and engagement
 - **📧 Email Invitations** - Seamless team member onboarding
 - **🌐 Cross-platform Support** - Works on desktop, tablet, and mobile devices

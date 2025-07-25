@@ -883,15 +883,32 @@ export default function Room() {
       <div style={{
         position: 'relative',
         aspectRatio: '16/9',
-        backgroundColor: '#1A4A3B',
-        borderRadius: isMobile ? '12px' : '16px',
+        background: 'linear-gradient(135deg, #374151 0%, #1f2937 100%)',
+        borderRadius: isMobile ? '12px' : (() => {
+          const totalParticipants = peers.length + 1;
+          return totalParticipants === 1 ? '24px' : totalParticipants <= 4 ? '20px' : '16px';
+        })(),
         overflow: 'hidden',
-        border: `${isMobile ? '1px' : '2px'} solid #0F9D58`,
-        boxShadow: isMobile ? '0 2px 10px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.3)',
-        width: isMobile ? '100%' : '50%',
-        maxWidth: '100%',
-        minHeight: isMobile ? '200px' : '300px',
-        flex: isMobile ? '0 0 auto' : '1 1 0'
+        border: `${(() => {
+          const totalParticipants = peers.length + 1;
+          return totalParticipants === 1 ? '3px' : '2px';
+        })()} solid rgba(16, 185, 129, 0.3)`,
+        boxShadow: (() => {
+          const totalParticipants = peers.length + 1;
+          return totalParticipants === 1 
+            ? '0 12px 48px rgba(0, 0, 0, 0.5)' 
+            : totalParticipants <= 4 
+              ? '0 8px 32px rgba(0, 0, 0, 0.4)' 
+              : '0 4px 16px rgba(0, 0, 0, 0.3)';
+        })(),
+        minHeight: isMobile ? '180px' : (() => {
+          const totalParticipants = peers.length + 1;
+          if (totalParticipants === 1) return '400px';
+          if (totalParticipants <= 4) return '280px';
+          if (totalParticipants <= 9) return '200px';
+          return '150px';
+        })(),
+        transition: 'all 0.3s ease'
       }}>
         <video 
           ref={ref} 
@@ -901,54 +918,39 @@ export default function Room() {
           style={{ 
             width: '100%', 
             height: '100%',
-            objectFit: 'cover'
+            objectFit: 'cover',
+            borderRadius: 'inherit'
           }} 
         />
-        {!hasStream && (
+        
+        {/* Participant Label */}
         <div style={{
           position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            backgroundColor: '#0F9D58',
-            color: 'white',
-            width: '60px',
-            height: '60px',
-            borderRadius: '50%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '24px',
-            fontWeight: '600'
-          }}>
-            {(participant?.name || 'U').charAt(0).toUpperCase()}
-          </div>
-        )}
-        <div style={{
-          position: 'absolute',
-          bottom: '8px',
-          left: '8px',
-          backgroundColor: 'rgba(0,0,0,0.8)',
+          bottom: '16px',
+          left: '16px',
+          background: 'rgba(0, 0, 0, 0.8)',
+          backdropFilter: 'blur(10px)',
           color: 'white',
-          padding: '4px 8px',
-          borderRadius: '16px',
-          fontSize: '12px',
-          fontWeight: '500',
+          padding: '8px 12px',
+          borderRadius: '24px',
+          fontSize: isMobile ? '13px' : '14px',
+          fontWeight: '600',
           display: 'flex',
           alignItems: 'center',
-          gap: '4px',
-          maxWidth: 'calc(100% - 16px)'
+          gap: '8px',
+          maxWidth: 'calc(100% - 32px)',
+          border: '1px solid rgba(255, 255, 255, 0.2)'
         }}>
           <div style={{
-            width: '24px',
-            height: '24px',
+            width: '28px',
+            height: '28px',
             borderRadius: '50%',
-            backgroundColor: '#0F9D58',
+            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '12px',
-            fontWeight: '600',
+            fontSize: '14px',
+            fontWeight: '700',
             flexShrink: 0
           }}>
             {(participant?.name || 'U').charAt(0).toUpperCase()}
@@ -961,6 +963,30 @@ export default function Room() {
             {participant?.name?.split(' ')[0] || 'Unknown'}
           </span>
         </div>
+
+        {/* No Stream Avatar */}
+        {!hasStream && (
+          <div style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+            color: 'white',
+            width: isMobile ? '80px' : '100px',
+            height: isMobile ? '80px' : '100px',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: isMobile ? '32px' : '40px',
+            fontWeight: '700',
+            boxShadow: '0 8px 24px rgba(16, 185, 129, 0.4)',
+            border: '3px solid rgba(255, 255, 255, 0.2)'
+          }}>
+            {(participant?.name || 'U').charAt(0).toUpperCase()}
+          </div>
+        )}
       </div>
     );
   };
@@ -1038,137 +1064,185 @@ export default function Room() {
       height: '100vh',
       display: 'flex',
       flexDirection: 'column',
-      backgroundColor: '#0F2027',
+      backgroundColor: '#1a1a1a',
       color: 'white',
-      fontFamily: '"Google Sans", Roboto, Arial, sans-serif'
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
     }}>
-      {/* Header */}
+      {/* Modern Header */}
       <header style={{
-        padding: isMobile ? '4px 16px' : '12px 24px',
-        backgroundColor: '#1F1F1F',
+        padding: isMobile ? '12px 16px' : '16px 32px',
+        background: 'linear-gradient(135deg, #2d3748 0%, #1a202c 100%)',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        borderBottom: '1px solid #333',
-        minHeight: isMobile ? '48px' : '64px'
+        borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+        boxShadow: '0 2px 20px rgba(0, 0, 0, 0.3)',
+        minHeight: isMobile ? '60px' : '72px',
+        backdropFilter: 'blur(10px)'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '8px' : '16px', flex: 1, minWidth: 0 }}>
-          <div style={{ 
-            fontSize: isMobile ? '16px' : '24px',
-            fontWeight: '400',
-            color: '#E8EAED',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap'
+        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '12px' : '20px', flex: 1, minWidth: 0 }}>
+          {/* Logo/Brand */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
           }}>
-            {(() => {
-              // Extract simple room name from complex ID
-              let displayRoomId = roomId;
-              if (roomId && roomId.includes('room-')) {
-                const parts = roomId.split('room-');
-                if (parts.length > 1) {
-                  displayRoomId = parts[parts.length - 1];
-                }
-              }
-              
-              // Map common room IDs to friendly names
-              const roomNames: { [key: string]: string } = {
-                'main-hall': 'Main Hall',
-                'meeting-room-1': 'Meeting Room 1',
-                'meeting-room-2': 'Meeting Room 2', 
-                'breakout-room': 'Breakout Room'
-              };
-              
-              const friendlyName = roomNames[displayRoomId] || displayRoomId;
-              
-              return isMobile 
-                ? new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                : `${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} | ${friendlyName}`;
-            })()}
-          </div>
-          {isMobile && (
             <div style={{
-              padding: '4px 8px',
-              backgroundColor: isConnected ? '#0F9D58' : '#DB4437',
-              color: 'white',
+              width: '32px',
+              height: '32px',
               borderRadius: '8px',
-              fontSize: '10px',
-              fontWeight: '500',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
               display: 'flex',
               alignItems: 'center',
-              gap: '3px'
+              justifyContent: 'center',
+              fontSize: '16px',
+              fontWeight: '700'
             }}>
-              <div style={{
-                width: '4px',
-                height: '4px',
-                borderRadius: '50%',
-                backgroundColor: 'white'
-              }} />
-              {participants.length + 1}
+              N
             </div>
-          )}
+            {!isMobile && (
+              <span style={{
+                fontSize: '18px',
+                fontWeight: '600',
+                color: '#ffffff'
+              }}>
+                NexOffice
+              </span>
+            )}
+          </div>
+
+          {/* Room Info */}
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '2px'
+          }}>
+            <div style={{ 
+              fontSize: isMobile ? '14px' : '16px',
+              fontWeight: '600',
+              color: '#ffffff',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap'
+            }}>
+              {(() => {
+                let displayRoomId = roomId;
+                if (roomId && roomId.includes('room-')) {
+                  const parts = roomId.split('room-');
+                  if (parts.length > 1) {
+                    displayRoomId = parts[parts.length - 1];
+                  }
+                }
+                
+                const roomNames: { [key: string]: string } = {
+                  'main-hall': 'Main Hall',
+                  'meeting-room-1': 'Meeting Room 1',
+                  'meeting-room-2': 'Meeting Room 2', 
+                  'breakout-room': 'Breakout Room'
+                };
+                
+                return roomNames[displayRoomId] || displayRoomId;
+              })()}
+            </div>
+            <div style={{
+              fontSize: '12px',
+              color: 'rgba(255, 255, 255, 0.7)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <span>{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+              <span>•</span>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}>
+                <div style={{
+                  width: '6px',
+                  height: '6px',
+                  borderRadius: '50%',
+                  backgroundColor: isConnected ? '#10b981' : '#ef4444'
+                }} />
+                <span>{participants.length + 1} participants</span>
+              </div>
+            </div>
+          </div>
         </div>
 
+        {/* Header Actions */}
         <div style={{ 
           display: 'flex',
           alignItems: 'center',
-          gap: isMobile ? '6px' : '8px'
+          gap: isMobile ? '8px' : '12px'
         }}>
+          {/* Connection Status */}
           {!isMobile && (
-          <div style={{ 
-            padding: '6px 12px', 
-              backgroundColor: isConnected ? '#0F9D58' : '#DB4437',
-            color: 'white',
-              borderRadius: '12px',
-            fontSize: '12px',
-            fontWeight: '500',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px'
-          }}>
-            <div style={{
+            <div style={{ 
+              padding: '6px 12px', 
+              backgroundColor: isConnected ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+              border: `1px solid ${isConnected ? '#10b981' : '#ef4444'}`,
+              color: isConnected ? '#10b981' : '#ef4444',
+              borderRadius: '20px',
+              fontSize: '12px',
+              fontWeight: '500',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}>
+              <div style={{
                 width: '6px',
                 height: '6px',
-              borderRadius: '50%',
-              backgroundColor: 'white'
-            }} />
-            {connectionStatus}
-          </div>
+                borderRadius: '50%',
+                backgroundColor: isConnected ? '#10b981' : '#ef4444'
+              }} />
+              {connectionStatus}
+            </div>
           )}
 
+          {/* Office Button */}
           {isOwner && (
-            <>
-              <button
-                onClick={() => router.push(`/office/${officeId}`)}
-                style={{
-                  padding: isMobile ? '6px 12px' : '8px 16px',
-                  backgroundColor: '#6B46C1',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: isMobile ? '16px' : '20px',
-                  cursor: 'pointer',
-                  fontSize: isMobile ? '12px' : '14px',
-                  fontWeight: '500',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: isMobile ? '4px' : '6px',
-                  marginRight: isMobile ? '4px' : '8px'
-                }}
-              >
-                🏢 {isMobile ? '' : 'Office'}
-              </button>
-
-            </>
+            <button
+              onClick={() => router.push(`/office/${officeId}`)}
+              style={{
+                padding: isMobile ? '8px 12px' : '10px 16px',
+                background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '12px',
+                cursor: 'pointer',
+                fontSize: isMobile ? '12px' : '14px',
+                fontWeight: '600',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-1px)';
+                e.currentTarget.style.boxShadow = '0 6px 16px rgba(139, 92, 246, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(139, 92, 246, 0.3)';
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z"/>
+              </svg>
+              {!isMobile && 'Office'}
+            </button>
           )}
 
           {/* Profile Button */}
           <button
             onClick={() => setShowProfile(true)}
             style={{
-              width: isMobile ? '36px' : '40px',
-              height: isMobile ? '36px' : '40px',
+              width: isMobile ? '40px' : '44px',
+              height: isMobile ? '40px' : '44px',
               borderRadius: '50%',
-              backgroundColor: '#4285F4',
+              background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
               color: 'white',
               border: 'none',
               cursor: 'pointer',
@@ -1177,14 +1251,21 @@ export default function Room() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              marginRight: isMobile ? '4px' : '8px'
+              transition: 'all 0.2s ease',
+              boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'scale(1.05)';
+              e.currentTarget.style.boxShadow = '0 6px 16px rgba(59, 130, 246, 0.4)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)';
             }}
             title="View Profile"
           >
-            S
+            {userName.charAt(0).toUpperCase()}
           </button>
-
-
         </div>
       </header>
 
@@ -1194,7 +1275,7 @@ export default function Room() {
         display: 'flex',
         position: 'relative',
         overflow: 'hidden',
-        backgroundColor: '#0F2027'
+        background: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)'
       }}>
         {/* Video Area */}
         <div style={{ 
@@ -1203,34 +1284,118 @@ export default function Room() {
           flexDirection: 'column',
           justifyContent: 'center',
           alignItems: 'center',
-          padding: isMobile ? '12px 8px 100px 8px' : '20px 20px 120px 20px',
-          gap: isMobile ? '12px' : '16px',
+          padding: isMobile ? '16px 12px 100px 12px' : '24px 32px 120px 32px',
+          gap: isMobile ? '16px' : '20px',
           overflowY: isMobile ? 'auto' : 'hidden'
         }}>
           {!showWhiteboard ? (
             <div style={{
-              display: 'flex',
-              flexDirection: isMobile ? 'column' : 'row',
-              gap: isMobile ? '12px' : '16px',
+              display: 'grid',
+              gridTemplateColumns: (() => {
+                if (isMobile) return '1fr';
+                
+                const totalParticipants = peers.length + 1; // +1 for self
+                
+                // Dynamic grid layout based on participant count
+                switch (totalParticipants) {
+                  case 1:
+                    return '1fr'; // Full screen for single person
+                  case 2:
+                    return 'repeat(2, 1fr)'; // Split screen for 2 people
+                  case 3:
+                    return 'repeat(2, 1fr)'; // 2x2 grid with one empty space
+                  case 4:
+                    return 'repeat(2, 1fr)'; // Perfect 2x2 grid
+                  case 5:
+                  case 6:
+                    return 'repeat(3, 1fr)'; // 3x2 grid
+                  case 7:
+                  case 8:
+                  case 9:
+                    return 'repeat(3, 1fr)'; // 3x3 grid
+                  default:
+                    return 'repeat(4, 1fr)'; // 4x4 grid for more participants
+                }
+              })(),
+              gridTemplateRows: (() => {
+                if (isMobile) return 'auto';
+                
+                const totalParticipants = peers.length + 1;
+                
+                switch (totalParticipants) {
+                  case 1:
+                    return '1fr'; // Single row
+                  case 2:
+                    return '1fr'; // Single row
+                  case 3:
+                  case 4:
+                    return 'repeat(2, 1fr)'; // Two rows
+                  case 5:
+                  case 6:
+                    return 'repeat(2, 1fr)'; // Two rows
+                  case 7:
+                  case 8:
+                  case 9:
+                    return 'repeat(3, 1fr)'; // Three rows
+                  default:
+                    return 'repeat(4, 1fr)'; // Four rows
+                }
+              })(),
+              gap: isMobile ? '12px' : (() => {
+                const totalParticipants = peers.length + 1;
+                return totalParticipants <= 4 ? '20px' : totalParticipants <= 9 ? '16px' : '12px';
+              })(),
               width: '100%',
               height: isMobile ? 'auto' : '100%',
-              maxWidth: '100%',
+              maxWidth: isMobile ? '100%' : (() => {
+                const totalParticipants = peers.length + 1;
+                return totalParticipants === 1 ? '800px' : totalParticipants <= 4 ? '1200px' : '1400px';
+              })(),
               justifyContent: 'center',
-              alignItems: isMobile ? 'stretch' : 'stretch'
+              alignItems: 'stretch',
+              padding: isMobile ? '0' : (() => {
+                const totalParticipants = peers.length + 1;
+                return totalParticipants === 1 ? '40px' : '20px';
+              })()
             }}>
               {/* My Video */}
               <div style={{
                 position: 'relative',
-                aspectRatio: '16/9',
-                backgroundColor: '#1A4A3B',
-                borderRadius: isMobile ? '12px' : '16px',
+                aspectRatio: (() => {
+                  const totalParticipants = peers.length + 1;
+                  // Use wider aspect ratio for single person, standard for others
+                  return totalParticipants === 1 ? '16/9' : '16/9';
+                })(),
+                background: 'linear-gradient(135deg, #374151 0%, #1f2937 100%)',
+                borderRadius: isMobile ? '12px' : (() => {
+                  const totalParticipants = peers.length + 1;
+                  return totalParticipants === 1 ? '24px' : totalParticipants <= 4 ? '20px' : '16px';
+                })(),
                 overflow: 'hidden',
-                border: `${isMobile ? '1px' : '2px'} solid #0F9D58`,
-                boxShadow: isMobile ? '0 2px 10px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.3)',
-                width: isMobile ? '100%' : '50%',
-                maxWidth: '100%',
-                minHeight: isMobile ? '200px' : '300px',
-                flex: isMobile ? '0 0 auto' : '1 1 0'
+                border: `${(() => {
+                  const totalParticipants = peers.length + 1;
+                  return totalParticipants === 1 ? '3px' : '2px';
+                })()} solid rgba(59, 130, 246, 0.3)`,
+                boxShadow: (() => {
+                  const totalParticipants = peers.length + 1;
+                  return totalParticipants === 1 
+                    ? '0 12px 48px rgba(0, 0, 0, 0.5)' 
+                    : totalParticipants <= 4 
+                      ? '0 8px 32px rgba(0, 0, 0, 0.4)' 
+                      : '0 4px 16px rgba(0, 0, 0, 0.3)';
+                })(),
+                minHeight: isMobile ? '180px' : (() => {
+                  const totalParticipants = peers.length + 1;
+                  if (totalParticipants === 1) return '400px';
+                  if (totalParticipants <= 4) return '280px';
+                  if (totalParticipants <= 9) return '200px';
+                  return '150px';
+                })(),
+                transition: 'all 0.3s ease',
+                transform: (() => {
+                  const totalParticipants = peers.length + 1;
+                  return totalParticipants === 1 ? 'scale(1.02)' : 'scale(1)';
+                })()
               }}>
                 <video 
                   ref={myVideo} 
@@ -1240,34 +1405,72 @@ export default function Room() {
                   style={{ 
                     width: '100%', 
                     height: '100%',
-                    objectFit: 'cover'
+                    objectFit: 'cover',
+                    borderRadius: 'inherit'
                   }} 
                 />
+                
+                {/* Video Controls Overlay */}
                 <div style={{
                   position: 'absolute',
-                  bottom: isMobile ? '8px' : '16px',
-                  left: isMobile ? '8px' : '16px',
-                  backgroundColor: 'rgba(0,0,0,0.8)',
+                  top: '12px',
+                  right: '12px',
+                  display: 'flex',
+                  gap: '8px'
+                }}>
+                  {isScreenSharing && (
+                    <div style={{
+                      padding: '6px 12px',
+                      background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                      color: 'white',
+                      borderRadius: '20px',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      boxShadow: '0 4px 12px rgba(239, 68, 68, 0.4)'
+                    }}>
+                      <div style={{
+                        width: '6px',
+                        height: '6px',
+                        borderRadius: '50%',
+                        backgroundColor: 'white',
+                        animation: 'pulse 2s infinite'
+                      }} />
+                      Sharing
+                    </div>
+                  )}
+                </div>
+
+                {/* User Label */}
+                <div style={{
+                  position: 'absolute',
+                  bottom: '16px',
+                  left: '16px',
+                  background: 'rgba(0, 0, 0, 0.8)',
+                  backdropFilter: 'blur(10px)',
                   color: 'white',
-                  padding: isMobile ? '4px 8px' : '6px 12px',
-                  borderRadius: isMobile ? '16px' : '20px',
-                  fontSize: isMobile ? '12px' : '14px',
-                  fontWeight: '500',
+                  padding: '8px 12px',
+                  borderRadius: '24px',
+                  fontSize: isMobile ? '13px' : '14px',
+                  fontWeight: '600',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: isMobile ? '4px' : '6px',
-                  maxWidth: isMobile ? 'calc(100% - 16px)' : 'auto'
+                  gap: '8px',
+                  maxWidth: 'calc(100% - 32px)',
+                  border: '1px solid rgba(255, 255, 255, 0.2)'
                 }}>
                   <div style={{
-                    width: isMobile ? '24px' : '32px',
-                    height: isMobile ? '24px' : '32px',
+                    width: '28px',
+                    height: '28px',
                     borderRadius: '50%',
-                    backgroundColor: '#0F9D58',
+                    background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: isMobile ? '12px' : '16px',
-                    fontWeight: '600',
+                    fontSize: '14px',
+                    fontWeight: '700',
                     flexShrink: 0
                   }}>
                     {userName.charAt(0).toUpperCase()}
@@ -1277,25 +1480,69 @@ export default function Room() {
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap'
                   }}>
-                    {isMobile ? userName.split(' ')[0] : userName} {isScreenSharing ? '(Screen)' : ''}
+                    {isMobile ? userName.split(' ')[0] : userName} (You)
                   </span>
+                  
+                  {/* Audio/Video Status */}
+                  <div style={{ display: 'flex', gap: '4px', marginLeft: '4px' }}>
+                    <div style={{
+                      width: '20px',
+                      height: '20px',
+                      borderRadius: '50%',
+                      backgroundColor: streamRef.current?.getAudioTracks()[0]?.enabled !== false ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+                      border: `1px solid ${streamRef.current?.getAudioTracks()[0]?.enabled !== false ? '#10b981' : '#ef4444'}`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill={streamRef.current?.getAudioTracks()[0]?.enabled !== false ? '#10b981' : '#ef4444'}>
+                        {streamRef.current?.getAudioTracks()[0]?.enabled !== false ? (
+                          <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.49 6-3.31 6-6.72h-1.7z"/>
+                        ) : (
+                          <path d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17c0-.06.02-.11.02-.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.33 3 2.99 3 .22 0 .44-.03.65-.08l1.66 1.66c-.71.33-1.5.52-2.31.52-2.76 0-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73 4.27 3z"/>
+                        )}
+                      </svg>
+                    </div>
+                    <div style={{
+                      width: '20px',
+                      height: '20px',
+                      borderRadius: '50%',
+                      backgroundColor: streamRef.current?.getVideoTracks()[0]?.enabled !== false ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+                      border: `1px solid ${streamRef.current?.getVideoTracks()[0]?.enabled !== false ? '#10b981' : '#ef4444'}`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill={streamRef.current?.getVideoTracks()[0]?.enabled !== false ? '#10b981' : '#ef4444'}>
+                        {streamRef.current?.getVideoTracks()[0]?.enabled !== false ? (
+                          <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
+                        ) : (
+                          <path d="M21 6.5l-4 4V7c0-.55-.45-1-1-1H9.82L21 17.18V6.5zM3.27 2L2 3.27 4.73 6H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.21 0 .39-.08.55-.18L19.73 21 21 19.73 3.27 2z"/>
+                        )}
+                      </svg>
+                    </div>
+                  </div>
                 </div>
+
+                {/* Camera Off Avatar */}
                 {!streamRef.current?.getVideoTracks()[0]?.enabled && (
                   <div style={{
                     position: 'absolute',
                     top: '50%',
                     left: '50%',
                     transform: 'translate(-50%, -50%)',
-                    backgroundColor: '#0F9D58',
+                    background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
                     color: 'white',
-                    width: isMobile ? '60px' : '80px',
-                    height: isMobile ? '60px' : '80px',
+                    width: isMobile ? '80px' : '100px',
+                    height: isMobile ? '80px' : '100px',
                     borderRadius: '50%',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: isMobile ? '24px' : '36px',
-                    fontWeight: '600'
+                    fontSize: isMobile ? '32px' : '40px',
+                    fontWeight: '700',
+                    boxShadow: '0 8px 24px rgba(59, 130, 246, 0.4)',
+                    border: '3px solid rgba(255, 255, 255, 0.2)'
                   }}>
                     {userName.charAt(0).toUpperCase()}
                   </div>
@@ -1312,41 +1559,45 @@ export default function Room() {
               {participants.length > 1 && peers.length === 0 && (
                 <div style={{
                   aspectRatio: '16/9',
-                  backgroundColor: '#1A4A3B',
-                  borderRadius: '16px',
+                  background: 'linear-gradient(135deg, #374151 0%, #1f2937 100%)',
+                  borderRadius: '20px',
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  padding: '20px',
-                  border: '2px solid #0F9D58',
-                  boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
+                  padding: '32px',
+                  border: '2px solid rgba(255, 255, 255, 0.1)',
+                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+                  minHeight: '300px'
                 }}>
                   <div style={{
-                    width: '60px',
-                    height: '60px',
+                    width: '80px',
+                    height: '80px',
                     borderRadius: '50%',
-                    backgroundColor: '#0F9D58',
+                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: '24px',
-                    marginBottom: '16px'
+                    fontSize: '32px',
+                    marginBottom: '20px',
+                    animation: 'pulse 2s infinite'
                   }}>
                     🔄
                   </div>
-                  <p style={{ 
+                  <h3 style={{ 
                     color: 'white', 
-                    fontSize: '16px',
-                    fontWeight: '500',
-                    margin: '0 0 8px 0'
+                    fontSize: '18px',
+                    fontWeight: '600',
+                    margin: '0 0 8px 0',
+                    textAlign: 'center'
                   }}>
                     Connecting to participants...
-                  </p>
+                  </h3>
                   <p style={{ 
-                    color: '#B0BEC5', 
+                    color: 'rgba(255, 255, 255, 0.7)', 
                     fontSize: '14px',
-                    margin: 0 
+                    margin: 0,
+                    textAlign: 'center'
                   }}>
                     {participants.filter(p => p.id !== myId.current).map(p => p.name).join(', ')}
                   </p>
@@ -1354,21 +1605,24 @@ export default function Room() {
               )}
             </div>
           ) : (
-            /* Whiteboard */
+            /* Modern Whiteboard */
             <div style={{ 
               position: 'relative',
-              backgroundColor: 'white',
-              borderRadius: '12px',
-              padding: '20px'
+              background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
+              borderRadius: '20px',
+              padding: '24px',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+              border: '2px solid rgba(255, 255, 255, 0.1)'
             }}>
               <canvas
                 ref={canvasRef}
                 width={800}
                 height={600}
                 style={{
-                  border: '2px solid #ddd',
-                  borderRadius: '8px',
-                  cursor: 'crosshair'
+                  border: '2px solid #e2e8f0',
+                  borderRadius: '12px',
+                  cursor: 'crosshair',
+                  backgroundColor: 'white'
                 }}
                 onMouseDown={startDrawing}
                 onMouseMove={draw}
@@ -1379,17 +1633,29 @@ export default function Room() {
                 onClick={clearWhiteboard}
                 style={{
                   position: 'absolute',
-                  top: '30px',
-                  right: '30px',
-                  padding: '8px 16px',
-                  backgroundColor: '#d93025',
+                  top: '36px',
+                  right: '36px',
+                  padding: '10px 20px',
+                  background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
                   color: 'white',
                   border: 'none',
-                  borderRadius: '8px',
-                  cursor: 'pointer'
+                  borderRadius: '12px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  boxShadow: '0 4px 12px rgba(239, 68, 68, 0.4)',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(239, 68, 68, 0.5)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.4)';
                 }}
               >
-                Clear
+                Clear Board
               </button>
             </div>
           )}
@@ -1510,115 +1776,143 @@ export default function Room() {
         )}
       </div>
 
-      {/* Professional Bottom Control Bar */}
+      {/* Floating Control Buttons */}
       <div style={{
         position: 'fixed',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        background: isMobile 
-          ? 'linear-gradient(180deg, rgba(32, 33, 36, 0) 0%, rgba(32, 33, 36, 0.8) 20%, rgba(32, 33, 36, 0.95) 100%)'
-          : 'rgba(32, 33, 36, 0.95)',
-        backdropFilter: isMobile ? 'blur(20px)' : 'none',
-        padding: isMobile ? '12px 20px 28px 20px' : '12px 40px 20px 40px',
-        zIndex: 100
+        bottom: isMobile ? '24px' : '32px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        zIndex: 100,
+        pointerEvents: 'none'
       }}>
+        {/* Control Container */}
         <div style={{ 
           display: 'flex', 
           justifyContent: 'center',
           alignItems: 'center',
-          gap: isMobile ? '12px' : '12px',
-          maxWidth: '600px',
-          margin: '0 auto'
+          gap: isMobile ? '16px' : '20px',
+          background: 'rgba(0, 0, 0, 0.8)',
+          backdropFilter: 'blur(20px)',
+          borderRadius: '50px',
+          padding: isMobile ? '12px 20px' : '16px 24px',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+          pointerEvents: 'auto'
         }}>
           {/* Left Controls Group */}
-          <div style={{ display: 'flex', gap: isMobile ? '8px' : '10px' }}>
-          {/* Microphone */}
-          <button 
-            onClick={() => {
-              if (streamRef.current) {
-                const audioTrack = streamRef.current.getAudioTracks()[0];
-                if (audioTrack) {
-                  audioTrack.enabled = !audioTrack.enabled;
-                  setPeers([...peersRef.current || []]);
+          <div style={{ 
+            display: 'flex', 
+            gap: isMobile ? '12px' : '16px',
+            alignItems: 'center'
+          }}>
+            {/* Microphone */}
+            <button 
+              onClick={() => {
+                if (streamRef.current) {
+                  const audioTrack = streamRef.current.getAudioTracks()[0];
+                  if (audioTrack) {
+                    audioTrack.enabled = !audioTrack.enabled;
+                    setPeers([...peersRef.current || []]);
+                  }
                 }
-              }
-            }}
-            disabled={!streamRef.current}
-            style={{
-                width: isMobile ? '52px' : '48px',
-                height: isMobile ? '52px' : '48px',
-              borderRadius: '50%',
-                backgroundColor: streamRef.current?.getAudioTracks()[0]?.enabled !== false ? 'rgba(255, 255, 255, 0.1)' : '#EA4335',
-                border: `2px solid ${streamRef.current?.getAudioTracks()[0]?.enabled !== false ? 'rgba(255, 255, 255, 0.2)' : '#EA4335'}`,
-              color: 'white',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              }}
+              disabled={!streamRef.current}
+              style={{
+                width: isMobile ? '56px' : '52px',
+                height: isMobile ? '56px' : '52px',
+                borderRadius: '50%',
+                background: streamRef.current?.getAudioTracks()[0]?.enabled !== false 
+                  ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.05) 100%)'
+                  : 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                border: streamRef.current?.getAudioTracks()[0]?.enabled !== false 
+                  ? '2px solid rgba(255, 255, 255, 0.2)'
+                  : '2px solid #ef4444',
+                color: 'white',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
                 transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                boxShadow: streamRef.current?.getAudioTracks()[0]?.enabled !== false 
+                  ? '0 8px 24px rgba(0, 0, 0, 0.3)'
+                  : '0 8px 24px rgba(239, 68, 68, 0.4)',
                 outline: 'none',
-                transform: 'scale(1)'
+                transform: 'scale(1)',
+                backdropFilter: 'blur(10px)'
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'scale(1.05)';
-                e.currentTarget.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.2)';
+                e.currentTarget.style.transform = 'scale(1.1)';
+                e.currentTarget.style.boxShadow = streamRef.current?.getAudioTracks()[0]?.enabled !== false 
+                  ? '0 12px 32px rgba(0, 0, 0, 0.4)'
+                  : '0 12px 32px rgba(239, 68, 68, 0.6)';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'scale(1)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+                e.currentTarget.style.boxShadow = streamRef.current?.getAudioTracks()[0]?.enabled !== false 
+                  ? '0 8px 24px rgba(0, 0, 0, 0.3)'
+                  : '0 8px 24px rgba(239, 68, 68, 0.4)';
               }}
-              title={streamRef.current?.getAudioTracks()[0]?.enabled !== false ? 'Mute microphone (m)' : 'Unmute microphone (m)'}
+              title={streamRef.current?.getAudioTracks()[0]?.enabled !== false ? 'Mute microphone (M)' : 'Unmute microphone (M)'}
             >
-              <svg width={isMobile ? "24" : "18"} height={isMobile ? "24" : "18"} viewBox="0 0 24 24" fill="currentColor">
+              <svg width={isMobile ? "24" : "20"} height={isMobile ? "24" : "20"} viewBox="0 0 24 24" fill="currentColor">
                 {streamRef.current?.getAudioTracks()[0]?.enabled !== false ? (
                   <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.49 6-3.31 6-6.72h-1.7z"/>
                 ) : (
                   <path d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17c0-.06.02-.11.02-.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.33 3 2.99 3 .22 0 .44-.03.65-.08l1.66 1.66c-.71.33-1.5.52-2.31.52-2.76 0-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73 4.27 3z"/>
                 )}
               </svg>
-          </button>
+            </button>
 
-          {/* Camera */}
-          <button 
-            onClick={() => {
-              if (streamRef.current) {
-                const videoTrack = streamRef.current.getVideoTracks()[0];
-                if (videoTrack) {
-                  videoTrack.enabled = !videoTrack.enabled;
-                  setPeers([...peersRef.current || []]);
+            {/* Camera */}
+            <button 
+              onClick={() => {
+                if (streamRef.current) {
+                  const videoTrack = streamRef.current.getVideoTracks()[0];
+                  if (videoTrack) {
+                    videoTrack.enabled = !videoTrack.enabled;
+                    setPeers([...peersRef.current || []]);
+                  }
                 }
-              }
-            }}
-            disabled={!streamRef.current}
-            style={{
-                width: isMobile ? '52px' : '48px',
-                height: isMobile ? '52px' : '48px',
-              borderRadius: '50%',
-                backgroundColor: streamRef.current?.getVideoTracks()[0]?.enabled !== false ? 'rgba(255, 255, 255, 0.1)' : '#EA4335',
-                border: `2px solid ${streamRef.current?.getVideoTracks()[0]?.enabled !== false ? 'rgba(255, 255, 255, 0.2)' : '#EA4335'}`,
-              color: 'white',
+              }}
+              disabled={!streamRef.current}
+              style={{
+                width: isMobile ? '56px' : '52px',
+                height: isMobile ? '56px' : '52px',
+                borderRadius: '50%',
+                background: streamRef.current?.getVideoTracks()[0]?.enabled !== false 
+                  ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.05) 100%)'
+                  : 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                border: streamRef.current?.getVideoTracks()[0]?.enabled !== false 
+                  ? '2px solid rgba(255, 255, 255, 0.2)'
+                  : '2px solid #ef4444',
+                color: 'white',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                boxShadow: streamRef.current?.getVideoTracks()[0]?.enabled !== false 
+                  ? '0 8px 24px rgba(0, 0, 0, 0.3)'
+                  : '0 8px 24px rgba(239, 68, 68, 0.4)',
                 outline: 'none',
-                transform: 'scale(1)'
+                transform: 'scale(1)',
+                backdropFilter: 'blur(10px)'
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'scale(1.05)';
-                e.currentTarget.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.2)';
+                e.currentTarget.style.transform = 'scale(1.1)';
+                e.currentTarget.style.boxShadow = streamRef.current?.getVideoTracks()[0]?.enabled !== false 
+                  ? '0 12px 32px rgba(0, 0, 0, 0.4)'
+                  : '0 12px 32px rgba(239, 68, 68, 0.6)';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'scale(1)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+                e.currentTarget.style.boxShadow = streamRef.current?.getVideoTracks()[0]?.enabled !== false 
+                  ? '0 8px 24px rgba(0, 0, 0, 0.3)'
+                  : '0 8px 24px rgba(239, 68, 68, 0.4)';
               }}
-              title={streamRef.current?.getVideoTracks()[0]?.enabled !== false ? 'Turn off camera (c)' : 'Turn on camera (c)'}
+              title={streamRef.current?.getVideoTracks()[0]?.enabled !== false ? 'Turn off camera (C)' : 'Turn on camera (C)'}
             >
-              <svg width={isMobile ? "24" : "18"} height={isMobile ? "24" : "18"} viewBox="0 0 24 24" fill="currentColor">
+              <svg width={isMobile ? "24" : "20"} height={isMobile ? "24" : "20"} viewBox="0 0 24 24" fill="currentColor">
                 {streamRef.current?.getVideoTracks()[0]?.enabled !== false ? (
                   <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
                 ) : (
@@ -1631,11 +1925,11 @@ export default function Room() {
           {/* Center - End Call Button */}
           <button 
             onClick={() => router.push(`/office/${officeId}`)}
-                          style={{
-                width: isMobile ? '56px' : '52px',
-                height: isMobile ? '56px' : '52px',
+            style={{
+              width: isMobile ? '64px' : '60px',
+              height: isMobile ? '64px' : '60px',
               borderRadius: '50%',
-              backgroundColor: '#EA4335',
+              background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
               border: 'none',
               color: 'white',
               cursor: 'pointer',
@@ -1643,95 +1937,122 @@ export default function Room() {
               alignItems: 'center',
               justifyContent: 'center',
               transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-              boxShadow: '0 4px 16px rgba(234, 67, 53, 0.4)',
+              boxShadow: '0 8px 32px rgba(239, 68, 68, 0.5)',
               outline: 'none',
-              transform: 'scale(1)'
+              transform: 'scale(1)',
+              position: 'relative'
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'scale(1.05)';
-              e.currentTarget.style.boxShadow = '0 6px 20px rgba(234, 67, 53, 0.6)';
+              e.currentTarget.style.transform = 'scale(1.1)';
+              e.currentTarget.style.boxShadow = '0 12px 40px rgba(239, 68, 68, 0.7)';
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.transform = 'scale(1)';
-              e.currentTarget.style.boxShadow = '0 4px 16px rgba(234, 67, 53, 0.4)';
+              e.currentTarget.style.boxShadow = '0 8px 32px rgba(239, 68, 68, 0.5)';
             }}
-            title="Leave call"
+            title="Leave call (ESC)"
           >
-            <svg width={isMobile ? "26" : "20"} height={isMobile ? "26" : "20"} viewBox="0 0 24 24" fill="currentColor">
+            <svg width={isMobile ? "28" : "24"} height={isMobile ? "28" : "24"} viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08c-.18-.17-.29-.42-.29-.7 0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71 0 .28-.11.53-.29.7l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.1-.7-.28-.79-.73-1.68-1.36-2.66-1.85-.33-.16-.56-.51-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z"/>
             </svg>
           </button>
 
           {/* Right Controls Group */}
-          <div style={{ display: 'flex', gap: isMobile ? '8px' : '10px' }}>
-          {/* Screen Share */}
+          <div style={{ 
+            display: 'flex', 
+            gap: isMobile ? '12px' : '16px',
+            alignItems: 'center'
+          }}>
+            {/* Screen Share */}
             {!isMobile && (
-          <button 
-            onClick={toggleScreenShare}
-            disabled={!streamRef.current}
-            style={{
-              width: '48px',
-              height: '48px',
-              borderRadius: '50%',
-                  backgroundColor: isScreenSharing ? '#1976D2' : 'rgba(255, 255, 255, 0.1)',
-                  border: `2px solid ${isScreenSharing ? '#1976D2' : 'rgba(255, 255, 255, 0.2)'}`,
-              color: 'white',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              <button 
+                onClick={toggleScreenShare}
+                disabled={!streamRef.current}
+                style={{
+                  width: '52px',
+                  height: '52px',
+                  borderRadius: '50%',
+                  background: isScreenSharing 
+                    ? 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)'
+                    : 'linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.05) 100%)',
+                  border: isScreenSharing 
+                    ? '2px solid #3b82f6'
+                    : '2px solid rgba(255, 255, 255, 0.2)',
+                  color: 'white',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                   transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                  boxShadow: isScreenSharing 
+                    ? '0 8px 24px rgba(59, 130, 246, 0.4)'
+                    : '0 8px 24px rgba(0, 0, 0, 0.3)',
                   outline: 'none',
-                  transform: 'scale(1)'
+                  transform: 'scale(1)',
+                  backdropFilter: 'blur(10px)'
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'scale(1.05)';
-                  e.currentTarget.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.2)';
+                  e.currentTarget.style.transform = 'scale(1.1)';
+                  e.currentTarget.style.boxShadow = isScreenSharing 
+                    ? '0 12px 32px rgba(59, 130, 246, 0.6)'
+                    : '0 12px 32px rgba(0, 0, 0, 0.4)';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.transform = 'scale(1)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+                  e.currentTarget.style.boxShadow = isScreenSharing 
+                    ? '0 8px 24px rgba(59, 130, 246, 0.4)'
+                    : '0 8px 24px rgba(0, 0, 0, 0.3)';
                 }}
-                title={isScreenSharing ? 'Stop sharing' : 'Present now'}
+                title={isScreenSharing ? 'Stop sharing' : 'Share screen'}
               >
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M20 18c1.1 0 1.99-.9 1.99-2L22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4zM4 6h16v10H4V6z"/>
                 </svg>
-          </button>
+              </button>
             )}
 
             {/* Chat */}
             <button 
               onClick={() => setShowChat(!showChat)}
-                              style={{
-                  width: isMobile ? '52px' : '48px',
-                  height: isMobile ? '52px' : '48px',
-                  borderRadius: '50%',
-                  backgroundColor: showChat ? '#1976D2' : 'rgba(255, 255, 255, 0.1)',
-                border: `2px solid ${showChat ? '#1976D2' : 'rgba(255, 255, 255, 0.2)'}`,
+              style={{
+                width: isMobile ? '56px' : '52px',
+                height: isMobile ? '56px' : '52px',
+                borderRadius: '50%',
+                background: showChat 
+                  ? 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)'
+                  : 'linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.05) 100%)',
+                border: showChat 
+                  ? '2px solid #3b82f6'
+                  : '2px solid rgba(255, 255, 255, 0.2)',
                 color: 'white',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                boxShadow: showChat 
+                  ? '0 8px 24px rgba(59, 130, 246, 0.4)'
+                  : '0 8px 24px rgba(0, 0, 0, 0.3)',
                 outline: 'none',
                 transform: 'scale(1)',
-                position: 'relative'
+                position: 'relative',
+                backdropFilter: 'blur(10px)'
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'scale(1.05)';
-                e.currentTarget.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.2)';
+                e.currentTarget.style.transform = 'scale(1.1)';
+                e.currentTarget.style.boxShadow = showChat 
+                  ? '0 12px 32px rgba(59, 130, 246, 0.6)'
+                  : '0 12px 32px rgba(0, 0, 0, 0.4)';
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'scale(1)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+                e.currentTarget.style.boxShadow = showChat 
+                  ? '0 8px 24px rgba(59, 130, 246, 0.4)'
+                  : '0 8px 24px rgba(0, 0, 0, 0.3)';
               }}
               title="Toggle chat"
             >
-              <svg width={isMobile ? "24" : "18"} height={isMobile ? "24" : "18"} viewBox="0 0 24 24" fill="currentColor">
+              <svg width={isMobile ? "24" : "20"} height={isMobile ? "24" : "20"} viewBox="0 0 24 24" fill="currentColor">
                 <path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/>
               </svg>
               {messages.length > 0 && !showChat && (

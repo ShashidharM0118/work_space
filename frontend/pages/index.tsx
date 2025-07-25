@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import DemoModal from '../components/DemoModal';
+import VirtualOfficeBackground from '../components/VirtualOfficeBackground';
 
 export default function LandingPage() {
   const router = useRouter();
@@ -122,18 +123,7 @@ export default function LandingPage() {
             >
               Features
             </Link>
-            <Link href="#pricing" style={{
-              color: '#94a3b8',
-              textDecoration: 'none',
-              fontSize: '16px',
-              fontWeight: '500',
-              transition: 'color 0.3s ease'
-            }}
-            onMouseOver={(e) => e.currentTarget.style.color = '#f1f5f9'}
-            onMouseOut={(e) => e.currentTarget.style.color = '#94a3b8'}
-            >
-              Pricing
-            </Link>
+
             <Link href="#about" style={{
               color: '#94a3b8',
               textDecoration: 'none',
@@ -216,6 +206,9 @@ export default function LandingPage() {
           background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%)',
           overflow: 'hidden'
         }}>
+          {/* Three.js Virtual Office Background */}
+          <VirtualOfficeBackground />
+          
           {/* Background Elements */}
           <motion.div
             style={{ y: y1 }}
@@ -229,7 +222,8 @@ export default function LandingPage() {
               height: '300px',
               background: 'radial-gradient(circle, rgba(59, 130, 246, 0.1) 0%, transparent 70%)',
               borderRadius: '50%',
-              filter: 'blur(40px)'
+              filter: 'blur(40px)',
+              zIndex: 1
             }} />
           </motion.div>
           
@@ -245,7 +239,8 @@ export default function LandingPage() {
               height: '400px',
               background: 'radial-gradient(circle, rgba(139, 92, 246, 0.1) 0%, transparent 70%)',
               borderRadius: '50%',
-              filter: 'blur(40px)'
+              filter: 'blur(40px)',
+              zIndex: 1
             }} />
           </motion.div>
 
@@ -498,9 +493,9 @@ export default function LandingPage() {
                   description: 'Create custom virtual environments that reflect your company culture and workflow'
                 },
                 {
-                  icon: '🔒',
-                  title: 'Enterprise Security',
-                  description: 'End-to-end encryption, SSO integration, and compliance with industry standards'
+                  icon: '🔐',
+                  title: 'OAuth Integrated',
+                  description: 'Seamless authentication with popular OAuth providers for secure and easy access'
                 }
               ].map((feature, index) => (
                 <motion.div
@@ -554,186 +549,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Pricing Section */}
-        <section id="pricing" style={{
-          padding: '120px 40px',
-          backgroundColor: '#0f172a'
-        }}>
-          <div style={{
-            maxWidth: '1200px',
-            margin: '0 auto'
-          }}>
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8 }}
-              viewport={{ once: true }}
-              style={{ textAlign: 'center', marginBottom: '80px' }}
-            >
-              <h2 style={{
-                fontSize: '48px',
-                fontWeight: '800',
-                margin: '0 0 24px 0',
-                background: 'linear-gradient(135deg, #f1f5f9 0%, #cbd5e1 100%)',
-                backgroundClip: 'text',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent'
-              }}>
-                Simple, Transparent Pricing
-              </h2>
-              <p style={{
-                fontSize: '20px',
-                color: '#94a3b8',
-                maxWidth: '600px',
-                margin: '0 auto'
-              }}>
-                Choose the perfect plan for your team size and requirements
-              </p>
-            </motion.div>
 
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-              gap: '40px',
-              maxWidth: '900px',
-              margin: '0 auto'
-            }}>
-              {[
-                {
-                  name: 'Starter',
-                  price: '$9',
-                  period: 'per user/month',
-                  features: ['Up to 10 team members', 'Video calls', 'Screen sharing', 'Basic integrations'],
-                  popular: false
-                },
-                {
-                  name: 'Professional',
-                  price: '$19',
-                  period: 'per user/month',
-                  features: ['Up to 50 team members', 'Advanced analytics', 'Custom branding', 'Priority support'],
-                  popular: true
-                },
-                {
-                  name: 'Enterprise',
-                  price: 'Custom',
-                  period: 'contact sales',
-                  features: ['Unlimited team members', 'SSO integration', 'Advanced security', 'Dedicated support'],
-                  popular: false
-                }
-              ].map((plan, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: index * 0.1 }}
-                  viewport={{ once: true }}
-                  whileHover={{ y: -5 }}
-                  style={{
-                    padding: '40px',
-                    backgroundColor: plan.popular ? 'rgba(59, 130, 246, 0.1)' : 'rgba(30, 41, 59, 0.5)',
-                    borderRadius: '16px',
-                    border: plan.popular ? '2px solid #3b82f6' : '1px solid rgba(148, 163, 184, 0.1)',
-                    position: 'relative',
-                    transition: 'all 0.3s ease'
-                  }}
-                >
-                  {plan.popular && (
-                    <div style={{
-                      position: 'absolute',
-                      top: '-12px',
-                      left: '50%',
-                      transform: 'translateX(-50%)',
-                      padding: '6px 20px',
-                      backgroundColor: '#3b82f6',
-                      color: 'white',
-                      borderRadius: '20px',
-                      fontSize: '14px',
-                      fontWeight: '600'
-                    }}>
-                      Most Popular
-                    </div>
-                  )}
-                  
-                  <h3 style={{
-                    fontSize: '24px',
-                    fontWeight: '700',
-                    margin: '0 0 16px 0',
-                    color: '#f1f5f9'
-                  }}>
-                    {plan.name}
-                  </h3>
-                  
-                  <div style={{ marginBottom: '32px' }}>
-                    <span style={{
-                      fontSize: '48px',
-                      fontWeight: '800',
-                      color: '#3b82f6'
-                    }}>
-                      {plan.price}
-                    </span>
-                    <span style={{
-                      fontSize: '16px',
-                      color: '#94a3b8',
-                      marginLeft: '8px'
-                    }}>
-                      {plan.period}
-                    </span>
-                  </div>
-                  
-                  <ul style={{
-                    listStyle: 'none',
-                    padding: 0,
-                    margin: '0 0 32px 0'
-                  }}>
-                    {plan.features.map((feature, featureIndex) => (
-                      <li key={featureIndex} style={{
-                        padding: '8px 0',
-                        color: '#94a3b8',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '12px'
-                      }}>
-                        <span style={{ color: '#22c55e' }}>✓</span>
-                        {feature}
-                      </li>
-                    ))}
-                  </ul>
-                  
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    style={{
-                      width: '100%',
-                      padding: '16px',
-                      backgroundColor: plan.popular ? '#3b82f6' : 'transparent',
-                      color: plan.popular ? 'white' : '#3b82f6',
-                      border: '2px solid #3b82f6',
-                      borderRadius: '8px',
-                      fontSize: '16px',
-                      fontWeight: '600',
-                      cursor: 'pointer',
-                      transition: 'all 0.3s ease'
-                    }}
-                    onMouseOver={(e) => {
-                      if (!plan.popular) {
-                        e.currentTarget.style.backgroundColor = '#3b82f6';
-                        e.currentTarget.style.color = 'white';
-                      }
-                    }}
-                    onMouseOut={(e) => {
-                      if (!plan.popular) {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                        e.currentTarget.style.color = '#3b82f6';
-                      }
-                    }}
-                  >
-                    Get Started
-                  </motion.button>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </section>
 
         {/* About Section */}
         <section id="about" style={{

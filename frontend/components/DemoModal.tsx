@@ -52,8 +52,8 @@ export default function DemoModal({ isOpen, onClose }: DemoModalProps) {
       size: { width: 20, height: 15 },
       participants: 3,
       maxParticipants: 20
-    }, 
-   {
+    },
+    {
       id: 'meeting-room-1',
       name: 'Meeting Room 1',
       description: 'Private meeting space',
@@ -100,8 +100,9 @@ export default function DemoModal({ isOpen, onClose }: DemoModalProps) {
     { id: '2', sender: 'Bob Smith', text: 'Thanks for setting this up, Alice', timestamp: '10:31 AM' },
     { id: '3', sender: 'Carol Davis', text: 'The new design looks great! 🎨', timestamp: '10:32 AM' },
     { id: '4', sender: 'David Wilson', text: 'Agreed! Ready to discuss the implementation', timestamp: '10:33 AM' }
-  ];  u
-seEffect(() => {
+  ];
+
+  useEffect(() => {
     if (isPlaying && currentStep < demoSteps.length - 1) {
       const timer = setTimeout(() => {
         setCurrentStep(prev => prev + 1);
@@ -166,67 +167,74 @@ seEffect(() => {
     flexDirection: 'column' as const,
     alignItems: 'center',
     justifyContent: 'center',
-    boxShadow: hoveredRoom === room.id 
+    boxShadow: hoveredRoom === room.id
       ? `0 8px 25px ${room.color}40`
       : '0 2px 8px rgba(0,0,0,0.1)'
-  });  co
-nst sendDemoMessage = () => {
+  });
+
+  const sendDemoMessage = () => {
     if (!newMessage.trim()) return;
-    
+
     const message = {
       id: Date.now().toString(),
       sender: 'You',
       text: newMessage,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
-    
+
     setMessages(prev => [...prev, message]);
     setNewMessage('');
   };
 
   if (!isOpen) return null;
 
+  const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
+
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.9)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 9999,
-      padding: '20px'
-    }}>
+    <div
+      className="demo-modal-container"
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.9)',
+        display: 'flex',
+        alignItems: isMobile ? 'flex-start' : 'center',
+        justifyContent: 'center',
+        zIndex: 9999,
+        padding: isMobile ? '0' : '20px'
+      }}>
       <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
+        initial={{ opacity: 0, scale: isMobile ? 1 : 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.9 }}
+        exit={{ opacity: 0, scale: isMobile ? 1 : 0.9 }}
         style={{
           backgroundColor: '#0f172a',
-          borderRadius: '24px',
+          borderRadius: isMobile ? '0' : '24px',
           width: '100%',
-          maxWidth: '1200px',
-          height: '90vh',
+          maxWidth: isMobile ? '100%' : '1200px',
+          height: isMobile ? '100vh' : '90vh',
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
-          border: '1px solid rgba(59, 130, 246, 0.2)'
+          border: isMobile ? 'none' : '1px solid rgba(59, 130, 246, 0.2)'
         }}
       >
         {/* Header */}
         <div style={{
-          padding: '24px 32px',
+          padding: isMobile ? '16px 20px' : '24px 32px',
           borderBottom: '1px solid rgba(148, 163, 184, 0.1)',
           display: 'flex',
           justifyContent: 'space-between',
-          alignItems: 'center'
+          alignItems: 'center',
+          flexWrap: isMobile ? 'wrap' : 'nowrap',
+          gap: isMobile ? '12px' : '0'
         }}>
           <div>
             <h2 style={{
-              fontSize: '28px',
+              fontSize: isMobile ? '20px' : '28px',
               fontWeight: '800',
               margin: '0 0 8px 0',
               background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
@@ -237,14 +245,14 @@ nst sendDemoMessage = () => {
               NexOffice Demo
             </h2>
             <p style={{
-              fontSize: '16px',
+              fontSize: isMobile ? '14px' : '16px',
               color: '#94a3b8',
               margin: 0
             }}>
               Experience the future of virtual collaboration
             </p>
-          </div> 
-         
+          </div>
+
           <div style={{
             display: 'flex',
             alignItems: 'center',
@@ -293,7 +301,7 @@ nst sendDemoMessage = () => {
                 🔄 Reset Demo
               </motion.button>
             )}
-            
+
             <button
               onClick={onClose}
               style={{
@@ -313,11 +321,11 @@ nst sendDemoMessage = () => {
               ✕
             </button>
           </div>
-        </div> 
-       {/* Progress Bar */}
+        </div>
+        {/* Progress Bar */}
         {isPlaying && (
           <div style={{
-            padding: '0 32px 16px',
+            padding: isMobile ? '0 20px 12px' : '0 32px 16px',
             borderBottom: '1px solid rgba(148, 163, 184, 0.1)'
           }}>
             <div style={{
@@ -360,8 +368,8 @@ nst sendDemoMessage = () => {
               />
             </div>
           </div>
-        )}  
-      {/* Demo Content */}
+        )}
+        {/* Demo Content */}
         <div style={{
           flex: 1,
           position: 'relative',
@@ -385,11 +393,11 @@ nst sendDemoMessage = () => {
                 }}
               >
                 <motion.div
-                  animate={{ 
+                  animate={{
                     scale: [1, 1.1, 1],
                     rotate: [0, 5, -5, 0]
                   }}
-                  transition={{ 
+                  transition={{
                     duration: 3,
                     repeat: Infinity,
                     ease: "easeInOut"
@@ -401,7 +409,7 @@ nst sendDemoMessage = () => {
                 >
                   🏢
                 </motion.div>
-                
+
                 <h3 style={{
                   fontSize: '32px',
                   fontWeight: '700',
@@ -410,7 +418,7 @@ nst sendDemoMessage = () => {
                 }}>
                   Welcome to NexOffice
                 </h3>
-                
+
                 <p style={{
                   fontSize: '18px',
                   color: '#94a3b8',
@@ -418,14 +426,14 @@ nst sendDemoMessage = () => {
                   lineHeight: '1.6',
                   marginBottom: '40px'
                 }}>
-                  Discover how NexOffice transforms remote work with virtual offices, 
+                  Discover how NexOffice transforms remote work with virtual offices,
                   seamless video conferencing, and powerful collaboration tools.
                 </p>
 
                 <div style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(3, 1fr)',
-                  gap: '24px',
+                  gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
+                  gap: isMobile ? '16px' : '24px',
                   maxWidth: '800px',
                   width: '100%'
                 }}>
@@ -476,8 +484,8 @@ nst sendDemoMessage = () => {
                   ))}
                 </div>
               </motion.div>
-            )}   
-         {/* Office Creation Demo */}
+            )}
+            {/* Office Creation Demo */}
             {showOfficeCreation && (
               <motion.div
                 key="office-creation"
@@ -529,7 +537,7 @@ nst sendDemoMessage = () => {
                       >
                         🏢
                       </motion.div>
-                      
+
                       <h3 style={{
                         fontSize: '24px',
                         fontWeight: '700',
@@ -538,7 +546,7 @@ nst sendDemoMessage = () => {
                       }}>
                         Create Your Office
                       </h3>
-                      
+
                       <p style={{
                         fontSize: '16px',
                         color: '#94a3b8',
@@ -612,8 +620,8 @@ nst sendDemoMessage = () => {
                   </motion.div>
                 </div>
               </motion.div>
-            )} 
-           {/* Office View Demo */}
+            )}
+            {/* Office View Demo */}
             {showOfficeView && (
               <motion.div
                 key="office-view"
@@ -653,7 +661,7 @@ nst sendDemoMessage = () => {
                       onClick={() => handleRoomClick(room.id)}
                     >
                       <motion.div
-                        animate={{ 
+                        animate={{
                           scale: hoveredRoom === room.id ? [1, 1.2, 1] : 1,
                           rotate: hoveredRoom === room.id ? [0, 10, -10, 0] : 0
                         }}
@@ -673,7 +681,7 @@ nst sendDemoMessage = () => {
                       >
                         {room.icon}
                       </motion.div>
-                      
+
                       <h3 style={{
                         color: hoveredRoom === room.id ? room.color : '#1e293b',
                         margin: '0 0 6px 0',
@@ -683,9 +691,9 @@ nst sendDemoMessage = () => {
                       }}>
                         {room.name}
                       </h3>
-                      
+
                       <motion.div
-                        animate={{ 
+                        animate={{
                           backgroundColor: hoveredRoom === room.id ? room.color : '#f1f5f9'
                         }}
                         style={{
@@ -726,8 +734,8 @@ nst sendDemoMessage = () => {
                   </motion.div>
                 </motion.div>
               </motion.div>
-            )}      
-      {/* Room View Demo */}
+            )}
+            {/* Room View Demo */}
             {showRoomView && (
               <motion.div
                 key="room-view"
@@ -752,10 +760,10 @@ nst sendDemoMessage = () => {
                 }}>
                   <div style={{
                     display: 'grid',
-                    gridTemplateColumns: 'repeat(2, 1fr)',
-                    gap: '16px',
+                    gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
+                    gap: isMobile ? '12px' : '16px',
                     width: '100%',
-                    maxWidth: '800px'
+                    maxWidth: isMobile ? '100%' : '800px'
                   }}>
                     {/* Your Video */}
                     <motion.div
@@ -776,11 +784,11 @@ nst sendDemoMessage = () => {
                       }}
                     >
                       <motion.div
-                        animate={{ 
+                        animate={{
                           scale: [1, 1.1, 1],
                           rotate: [0, 2, -2, 0]
                         }}
-                        transition={{ 
+                        transition={{
                           duration: 3,
                           repeat: Infinity,
                           ease: "easeInOut"
@@ -799,7 +807,7 @@ nst sendDemoMessage = () => {
                       >
                         👤
                       </motion.div>
-                      
+
                       <div style={{
                         position: 'absolute',
                         bottom: '16px',
@@ -836,11 +844,11 @@ nst sendDemoMessage = () => {
                         }}
                       >
                         <motion.div
-                          animate={{ 
+                          animate={{
                             scale: [1, 1.05, 1],
                             y: [0, -5, 0]
                           }}
-                          transition={{ 
+                          transition={{
                             duration: 2 + index * 0.5,
                             repeat: Infinity,
                             ease: "easeInOut"
@@ -851,7 +859,7 @@ nst sendDemoMessage = () => {
                         >
                           {participant.avatar}
                         </motion.div>
-                        
+
                         <div style={{
                           position: 'absolute',
                           bottom: '8px',
@@ -897,7 +905,7 @@ nst sendDemoMessage = () => {
                   }}>
                     🎤
                   </button>
-                  
+
                   <button style={{
                     width: '48px',
                     height: '48px',
@@ -912,7 +920,7 @@ nst sendDemoMessage = () => {
                   }}>
                     📹
                   </button>
-                  
+
                   <button style={{
                     width: '52px',
                     height: '52px',
@@ -927,7 +935,7 @@ nst sendDemoMessage = () => {
                   }}>
                     📞
                   </button>
-                  
+
                   <button style={{
                     width: '48px',
                     height: '48px',
@@ -979,5 +987,6 @@ nst sendDemoMessage = () => {
         )}
       </motion.div>
     </div>
+
   );
 }
