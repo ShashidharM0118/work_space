@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, User } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, User, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { getFirestore, doc, collection, addDoc, updateDoc, deleteDoc, onSnapshot, query, where, orderBy, setDoc, getDoc, getDocs, limit, Timestamp } from "firebase/firestore";
 import { getAnalytics } from "firebase/analytics";
 
@@ -94,6 +94,52 @@ export const handleAuthRedirect = async () => {
 };
 
 export const signOutUser = () => signOut(auth);
+
+// Email/Password Authentication
+export const signInWithEmail = async (email: string, password: string) => {
+  try {
+    const result = await signInWithEmailAndPassword(auth, email, password);
+    console.log('✅ Successfully signed in with email:', result.user.email);
+    
+    // Create or update user profile
+    await createOrUpdateUserProfile(result.user);
+    
+    return result;
+  } catch (error: any) {
+    console.error('❌ Email Sign In Error:', {
+      code: error.code,
+      message: error.message
+    });
+    throw error;
+  }
+};
+
+export const signUpWithEmail = async (email: string, password: string, displayName: string) => {
+  try {
+    const result = await createUserWithEmailAndPassword(auth, email, password);
+    
+    // Update the user's display name
+    await updateProfile(result.user, {
+      displayName: displayName
+    });
+    
+    console.log('✅ Successfully created account with email:', result.user.email);
+    
+    // Create or update user profile with the display name
+    await createOrUpdateUserProfile({
+      ...result.user,
+      displayName: displayName
+    });
+    
+    return result;
+  } catch (error: any) {
+    console.error('❌ Email Sign Up Error:', {
+      code: error.code,
+      message: error.message
+    });
+    throw error;
+  }
+};
 
 // User Profile Management
 export interface UserProfile {

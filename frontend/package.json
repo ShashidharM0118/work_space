@@ -1,5 +1,5 @@
 {
-  "name": "webrtc-multi-peer-app",
+  "name": "nexoffice",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -10,6 +10,7 @@
   "dependencies": {
     "critters": "^0.0.23",
     "firebase": "^12.0.0",
+    "framer-motion": "^12.23.9",
     "next": "^14.2.30",
     "react": "18.2.0",
     "react-dom": "18.2.0",

@@ -1,2936 +1,988 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
+import Link from 'next/link';
+import { motion, useScroll, useTransform } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
-import { getRecentRooms, getOwnedOffices, getMemberOffices, subscribeToUserRooms, createOffice, sendEmailInvitation, getUserInvitations, getSentInvitations, cancelInvitation, respondToOfficeInvitation, getOfficeActivityStats, type RoomMembership, type UserRooms, type ActivityStats } from '../lib/firebase';
-import { v4 as uuidv4 } from 'uuid';
+import DemoModal from '../components/DemoModal';
 
-interface Office {
-  id: string;
-  name: string;
-  description: string;
-  color: string;
-  icon: string;
-  position: { x: number; y: number };
-  size: { width: number; height: number };
-  participants: number;
-  maxParticipants: number;
-}
-
-const defaultOffices: Office[] = [
-  {
-    id: 'frontend',
-    name: 'Frontend Team',
-    description: 'UI/UX Development & Design',
-    color: '#0052CC',
-    icon: '💻',
-    position: { x: 10, y: 20 },
-    size: { width: 25, height: 20 },
-    participants: 0,
-    maxParticipants: 8
-  },
-  {
-    id: 'backend',
-    name: 'Backend Team',
-    description: 'Server & Database Development',
-    color: '#00875A',
-    icon: '⚙️',
-    position: { x: 50, y: 20 },
-    size: { width: 25, height: 20 },
-    participants: 0,
-    maxParticipants: 8
-  },
-  {
-    id: 'integrated',
-    name: 'Integration Hub',
-    description: 'Cross-team Collaboration',
-    color: '#BF2600',
-    icon: '🤝',
-    position: { x: 30, y: 55 },
-    size: { width: 30, height: 25 },
-    participants: 0,
-    maxParticipants: 12
-  }
-];
-
-// Sent Invitation Card Component
-const SentInvitationCard = ({ invitation, onCancel }: {
-  invitation: any;
-  onCancel: (invitationId: string) => void;
-}) => {
-  const [isCancelling, setIsCancelling] = useState(false);
-
-  const handleCancel = async () => {
-    setIsCancelling(true);
-    try {
-      await onCancel(invitation.id);
-    } finally {
-      setIsCancelling(false);
-    }
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    });
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending': return '#BF2600';
-      case 'accepted': return '#0F9D58';
-      case 'rejected': return '#DB4437';
-      case 'cancelled': return '#666';
-      default: return '#666';
-    }
-  };
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'pending': return 'PENDING';
-      case 'accepted': return 'ACCEPTED';
-      case 'rejected': return 'REJECTED';
-      case 'cancelled': return 'CANCELLED';
-      default: return 'UNKNOWN';
-    }
-  };
-
-  return (
-    <div style={{
-      padding: '20px',
-      backgroundColor: '#2A2A2A',
-      borderRadius: '16px',
-      border: '1px solid #444',
-      transition: 'all 0.3s ease'
-    }}>
-      {/* Invitation Info */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: '16px'
-      }}>
-        <div style={{ flex: 1 }}>
-          <h3 style={{
-            fontSize: '18px',
-            fontWeight: '700',
-            color: '#7B68EE',
-            margin: '0 0 4px 0'
-          }}>
-            {invitation.officeName}
-          </h3>
-          <p style={{
-            fontSize: '14px',
-            color: 'rgba(255,255,255,0.7)',
-            margin: '0 0 8px 0'
-          }}>
-            Sent to {invitation.inviteeEmail}
-          </p>
-          <p style={{
-            fontSize: '12px',
-            color: 'rgba(255,255,255,0.5)',
-            margin: 0
-          }}>
-            Sent {formatDate(invitation.createdAt)}
-          </p>
-        </div>
-        <div style={{
-          padding: '4px 8px',
-          backgroundColor: getStatusColor(invitation.status),
-          color: 'white',
-          borderRadius: '8px',
-          fontSize: '10px',
-          fontWeight: '600'
-        }}>
-          {getStatusText(invitation.status)}
-        </div>
-      </div>
-
-      {/* Message */}
-      {invitation.message && (
-        <div style={{
-          padding: '12px',
-          backgroundColor: 'rgba(255,255,255,0.05)',
-          borderRadius: '8px',
-          marginBottom: '16px'
-        }}>
-          <p style={{
-            fontSize: '14px',
-            color: 'rgba(255,255,255,0.8)',
-            margin: 0,
-            fontStyle: 'italic'
-          }}>
-            "{invitation.message}"
-          </p>
-        </div>
-      )}
-
-      {/* Action Button */}
-      {invitation.status === 'pending' && (
-        <button
-          onClick={handleCancel}
-          disabled={isCancelling}
-          style={{
-            padding: '12px 20px',
-            backgroundColor: isCancelling ? '#666' : '#DB4437',
-            color: 'white',
-            border: 'none',
-            borderRadius: '12px',
-            fontSize: '14px',
-            fontWeight: '600',
-            cursor: isCancelling ? 'not-allowed' : 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '6px',
-            transition: 'all 0.3s ease',
-            opacity: isCancelling ? 0.7 : 1
-          }}
-        >
-          {isCancelling ? (
-            <>
-              <div style={{
-                width: '12px',
-                height: '12px',
-                border: '2px solid rgba(255,255,255,0.3)',
-                borderTop: '2px solid white',
-                borderRadius: '50%',
-                animation: 'spin 1s linear infinite'
-              }} />
-              Cancelling...
-            </>
-          ) : (
-            <>
-              🗑️ Cancel Invitation
-            </>
-          )}
-        </button>
-      )}
-    </div>
-  );
-};
-
-// Invitation Card Component
-const InvitationCard = ({ invitation, onRespond }: {
-  invitation: any;
-  onRespond: (invitationId: string, response: 'accepted' | 'rejected') => void;
-}) => {
-  const [isResponding, setIsResponding] = useState(false);
-
-  const handleResponse = async (response: 'accepted' | 'rejected') => {
-    setIsResponding(true);
-    try {
-      await onRespond(invitation.id, response);
-    } finally {
-      setIsResponding(false);
-    }
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    });
-  };
-
-  return (
-    <div style={{
-      padding: '20px',
-      backgroundColor: '#2A2A2A',
-      borderRadius: '16px',
-      border: '1px solid #444',
-      transition: 'all 0.3s ease'
-    }}>
-      {/* Office Info */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: '16px'
-      }}>
-        <div style={{ flex: 1 }}>
-          <h3 style={{
-            fontSize: '18px',
-            fontWeight: '700',
-            color: '#0F9D58',
-            margin: '0 0 4px 0'
-          }}>
-            {invitation.officeName}
-          </h3>
-          <p style={{
-            fontSize: '14px',
-            color: 'rgba(255,255,255,0.7)',
-            margin: '0 0 8px 0'
-          }}>
-            Invited by {invitation.inviterName}
-          </p>
-          <p style={{
-            fontSize: '12px',
-            color: 'rgba(255,255,255,0.5)',
-            margin: 0
-          }}>
-            Received {formatDate(invitation.createdAt)}
-          </p>
-        </div>
-        <div style={{
-          padding: '4px 8px',
-          backgroundColor: '#BF2600',
-          color: 'white',
-          borderRadius: '8px',
-          fontSize: '10px',
-          fontWeight: '600'
-        }}>
-          PENDING
-        </div>
-      </div>
-
-      {/* Message */}
-      {invitation.message && (
-        <div style={{
-          padding: '12px',
-          backgroundColor: 'rgba(255,255,255,0.05)',
-          borderRadius: '8px',
-          marginBottom: '16px'
-        }}>
-          <p style={{
-            fontSize: '14px',
-            color: 'rgba(255,255,255,0.8)',
-            margin: 0,
-            fontStyle: 'italic'
-          }}>
-            "{invitation.message}"
-          </p>
-        </div>
-      )}
-
-      {/* Action Buttons */}
-      <div style={{
-        display: 'flex',
-        gap: '12px'
-      }}>
-        <button
-          onClick={() => handleResponse('accepted')}
-          disabled={isResponding}
-          style={{
-            flex: 1,
-            padding: '12px 20px',
-            background: isResponding ? '#666' : 'linear-gradient(135deg, #0F9D58 0%, #00875A 100%)',
-            color: 'white',
-            border: 'none',
-            borderRadius: '12px',
-            fontSize: '14px',
-            fontWeight: '600',
-            cursor: isResponding ? 'not-allowed' : 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '6px',
-            transition: 'all 0.3s ease',
-            opacity: isResponding ? 0.7 : 1
-          }}
-        >
-          {isResponding ? (
-            <>
-              <div style={{
-                width: '12px',
-                height: '12px',
-                border: '2px solid rgba(255,255,255,0.3)',
-                borderTop: '2px solid white',
-                borderRadius: '50%',
-                animation: 'spin 1s linear infinite'
-              }} />
-              Processing...
-            </>
-          ) : (
-            <>
-              ✅ Accept
-            </>
-          )}
-        </button>
-        
-        <button
-          onClick={() => handleResponse('rejected')}
-          disabled={isResponding}
-          style={{
-            flex: 1,
-            padding: '12px 20px',
-            backgroundColor: isResponding ? '#666' : '#DB4437',
-            color: 'white',
-            border: 'none',
-            borderRadius: '12px',
-            fontSize: '14px',
-            fontWeight: '600',
-            cursor: isResponding ? 'not-allowed' : 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '6px',
-            transition: 'all 0.3s ease',
-            opacity: isResponding ? 0.7 : 1
-          }}
-        >
-          ❌ Decline
-        </button>
-      </div>
-    </div>
-  );
-};
-
-export default function Home() {
+export default function LandingPage() {
   const router = useRouter();
-  const { user, signInWithGoogle, signOut } = useAuth();
-  const [showCreateOffice, setShowCreateOffice] = useState(false);
-  const [showOfficeSelect, setShowOfficeSelect] = useState(false);
-  const [showInviteModal, setShowInviteModal] = useState(false);
-  const [hoveredOffice, setHoveredOffice] = useState<string | null>(null);
-  const [selectedOffice, setSelectedOffice] = useState<string | null>(null);
-  const [userName, setUserName] = useState('');
-  const [showNameInput, setShowNameInput] = useState(false);
-  const [isEntering, setIsEntering] = useState(false);
-  const [officeCode, setOfficeCode] = useState('');
-  const [newOfficeName, setNewOfficeName] = useState('');
-  const [newOfficeDescription, setNewOfficeDescription] = useState('');
-  const [copySuccess, setCopySuccess] = useState(false);
-  const [isCreatingOffice, setIsCreatingOffice] = useState(false);
+  const { user } = useAuth();
+  const { scrollY } = useScroll();
+  const y1 = useTransform(scrollY, [0, 300], [0, -50]);
+  const y2 = useTransform(scrollY, [0, 300], [0, -100]);
+  const [showDemo, setShowDemo] = useState(false);
 
-  // Room management state
-  const [recentRooms, setRecentRooms] = useState<RoomMembership[]>([]);
-  const [ownedOffices, setOwnedOffices] = useState<string[]>([]);
-  const [memberOffices, setMemberOffices] = useState<string[]>([]);
-  const [userRooms, setUserRooms] = useState<UserRooms | null>(null);
-  const [showDashboard, setShowDashboard] = useState(true);
-  const [pendingInvitations, setPendingInvitations] = useState<any[]>([]);
-  const [showInvitations, setShowInvitations] = useState(false);
-  const [sentInvitations, setSentInvitations] = useState<any[]>([]);
-  const [showSentInvitations, setShowSentInvitations] = useState(false);
-  const [showProfile, setShowProfile] = useState(false);
-  const [activityStats, setActivityStats] = useState<ActivityStats | null>(null);
-  const [loadingActivityStats, setLoadingActivityStats] = useState(false);
-
-  // Invitation state
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteMessage, setInviteMessage] = useState('');
-  const [selectedOfficeForInvite, setSelectedOfficeForInvite] = useState<string | null>(null);
-
-  // Auto-fill user name from Google account
+  // Redirect to dashboard if user is already logged in
   useEffect(() => {
-    if (user?.displayName) {
-      setUserName(user.displayName);
+    if (user) {
+      router.push('/dashboard');
     }
-  }, [user]);
+  }, [user, router]);
 
-  // Load user's recent rooms and owned offices
-  useEffect(() => {
-    if (!user) return;
-
-    const loadUserData = async () => {
-      try {
-        const recent = await getRecentRooms(user.uid, 10);
-        const owned = await getOwnedOffices(user.uid);
-        const member = await getMemberOffices(user.uid);
-        const invitations = await getUserInvitations(user.uid);
-        const sent = await getSentInvitations(user.uid);
-        setRecentRooms(recent);
-        setOwnedOffices(owned);
-        setMemberOffices(member);
-        setPendingInvitations(invitations);
-        setSentInvitations(sent);
-      } catch (error) {
-        console.error('Error loading user data:', error);
-      }
-    };
-
-    loadUserData();
-
-    // Subscribe to real-time updates
-    const unsubscribe = subscribeToUserRooms(user.uid, (rooms) => {
-      setUserRooms(rooms);
-      if (rooms) {
-        setRecentRooms(rooms.recentRooms.filter(room => room.isActive).slice(0, 10));
-        setOwnedOffices(rooms.ownedOffices);
-      }
-    });
-
-    return () => unsubscribe();
-  }, [user]);
-
-  const [authError, setAuthError] = useState('');
-  const [isSigningIn, setIsSigningIn] = useState(false);
-
-  const handleSignIn = async () => {
-    setIsSigningIn(true);
-    setAuthError('');
-    
-    // Set a timeout to reset loading state in case authentication gets stuck
-    const timeoutId = setTimeout(() => {
-      setIsSigningIn(false);
-      setAuthError('Authentication timed out. Please try again.');
-    }, 30000); // 30 seconds timeout
-    
-    try {
-      const result = await signInWithGoogle();
-      
-      // Clear timeout if authentication completes
-      clearTimeout(timeoutId);
-      
-      // If result is null, it means we're using redirect method
-      if (result === null) {
-        // Don't reset isSigningIn yet, redirect will handle it
-        return;
-      }
-      
-      setIsSigningIn(false);
-    } catch (error: any) {
-      clearTimeout(timeoutId);
-      console.error('Sign in error:', error);
-      setIsSigningIn(false);
-      
-      let errorMessage = 'Failed to sign in. Please try again.';
-      
-      if (error.code === 'auth/unauthorized-domain') {
-        errorMessage = 'This domain is not authorized for Google Sign-In. Please contact support or try from an authorized domain.';
-      } else if (error.code === 'auth/popup-closed-by-user') {
-        errorMessage = 'Sign-in was cancelled. Please try again.';
-      } else if (error.code === 'auth/popup-blocked') {
-        errorMessage = 'Pop-up was blocked by your browser. Please allow pop-ups and try again.';
-      } else if (error.code === 'auth/network-request-failed') {
-        errorMessage = 'Network error. Please check your connection and try again.';
-      } else if (error.message.includes('Cross-Origin-Opener-Policy') || error.message.includes('opener')) {
-        errorMessage = 'Authentication popup was blocked. Please disable popup blockers and try again.';
-      }
-      
-      setAuthError(errorMessage);
-    }
-  };
-
-  const createNewOffice = async () => {
-    if (!newOfficeName.trim()) {
-      setAuthError('Please enter an office name.');
-      return;
-    }
-
-    if (!user) {
-      setAuthError('You must be signed in to create an office.');
-      return;
-    }
-
-    setIsCreatingOffice(true);
-    try {
-      const description = newOfficeDescription.trim() || 'A collaborative workspace for teams';
-      const { office, officeId } = await createOffice(
-        newOfficeName.trim(),
-        description,
-        user.uid,
-        user.displayName || user.email || 'Unknown User'
-      );
-      
-      // Close modal and reset form
-      setShowCreateOffice(false);
-      setNewOfficeName('');
-      setNewOfficeDescription('');
-      setAuthError('');
-      
-      // Navigate to the new office
-      await router.push(`/office/${officeId}`);
-    } catch (error) {
-      console.error('Error creating office:', error);
-      setAuthError('Failed to create office. Please try again.');
-    } finally {
-      setIsCreatingOffice(false);
-    }
-  };
-
-  const joinOfficeByCode = async () => {
-    if (!officeCode.trim()) {
-      setAuthError('Please enter an office code.');
-      return;
-    }
-
-    try {
-      await router.push(`/office/${officeCode.trim()}`);
-    } catch (error) {
-      console.error('Error joining office:', error);
-      setAuthError('Failed to join office. Please check the code and try again.');
-    }
-  };
-
-  // Load activity statistics for owned offices
-  const loadActivityStats = async () => {
-    if (!user || ownedOffices.length === 0) return;
-
-    setLoadingActivityStats(true);
-    try {
-      // Get stats for the first owned office (can be enhanced to combine multiple offices)
-      const firstOfficeId = ownedOffices[0];
-      const stats = await getOfficeActivityStats(firstOfficeId);
-      setActivityStats(stats);
-    } catch (error) {
-      console.error('Error loading activity stats:', error);
-      setActivityStats({
-        totalEmployees: 0,
-        activeNow: 0,
-        avgWeeklyHours: 0,
-        topPerformers: []
-      });
-    } finally {
-      setLoadingActivityStats(false);
-    }
-  };
-
-  // Load activity stats when profile is opened and user has offices
-  useEffect(() => {
-    if (showProfile && user && ownedOffices.length > 0) {
-      loadActivityStats();
-    }
-  }, [showProfile, user, ownedOffices]);
-
-  const handleOfficeClick = (officeId: string) => {
-    setSelectedOffice(officeId);
-    setShowNameInput(true);
-  };
-
-  const joinRoom = () => {
-    if (!userName.trim() || !selectedOffice) return;
-    
-    setIsEntering(true);
-    localStorage.setItem('userName', userName.trim());
-    
-    setTimeout(() => {
-      router.push(`/room/${selectedOffice}`);
-    }, 1000);
-  };
-
-  const sendInvitation = async () => {
-    if (!inviteEmail.trim() || !selectedOfficeForInvite || !user) {
-      setAuthError('Please fill in all required fields.');
-      return;
-    }
-
-    try {
-      const result = await sendEmailInvitation(
-        selectedOfficeForInvite,
-        'main-hall', // Default to main hall for now
-        user.uid,
-        user.displayName || 'Unknown User',
-        user.email || '',
-        inviteEmail.trim(),
-        inviteMessage.trim()
-      );
-
-      setShowInviteModal(false);
-      setInviteEmail('');
-      setInviteMessage('');
-      setSelectedOfficeForInvite(null);
-      
-      // Show success message
-      setCopySuccess(true);
-      setTimeout(() => setCopySuccess(false), 3000);
-      
-    } catch (error) {
-      console.error('Error sending invitation:', error);
-      setAuthError('Failed to send invitation. Please try again.');
-    }
-  };
-
-  const handleOfficeHover = (officeId: string) => {
-    setHoveredOffice(officeId);
-  };
-
-  const handleOfficeLeave = () => {
-    setHoveredOffice(null);
-  };
-
-  const getOfficeStyle = (office: Office) => ({
-    position: 'absolute' as const,
-    left: `${office.position.x}%`,
-    top: `${office.position.y}%`,
-    width: `${office.size.width}%`,
-    height: `${office.size.height}%`,
-    backgroundColor: hoveredOffice === office.id ? office.color : `${office.color}08`,
-    border: `2px solid ${office.color}`,
-    borderRadius: '16px',
-    cursor: 'pointer',
-    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-    transform: hoveredOffice === office.id ? 'scale(1.02) translateY(-2px)' : 'scale(1)',
-    display: 'flex',
-    flexDirection: 'column' as const,
-    alignItems: 'center',
-    justifyContent: 'center',
-    boxShadow: hoveredOffice === office.id 
-      ? `0 25px 50px -12px ${office.color}40, 0 8px 16px -8px ${office.color}20`
-      : `0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)`,
-    backdropFilter: 'blur(16px)',
-    background: hoveredOffice === office.id 
-      ? `linear-gradient(135deg, ${office.color}20, ${office.color}10)`
-      : `linear-gradient(135deg, rgba(255,255,255,0.8), rgba(255,255,255,0.4))`,
-  });
-
-  if (!user) {
+  if (user) {
     return (
-      <>
-        <Head>
-          <title>Enterprise Virtual Office Platform</title>
-          <meta name="description" content="Premium enterprise-grade virtual office platform for seamless team collaboration" />
-          <link rel="icon" href="/favicon.ico" />
-          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        </Head>
-
+      <div style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontFamily: '"Inter", sans-serif'
+      }}>
         <div style={{
-          minHeight: '100vh',
-          background: 'linear-gradient(135deg, #0F1419 0%, #1E293B 25%, #334155 50%, #475569 100%)',
-          fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '20px',
-          position: 'relative'
+          color: 'white',
+          textAlign: 'center',
+          fontSize: '18px'
         }}>
-          {/* Background pattern */}
-          <div style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundImage: `radial-gradient(circle at 1px 1px, rgba(255,255,255,0.15) 1px, transparent 0)`,
-            backgroundSize: '20px 20px',
-            opacity: 0.5
-          }} />
-
-          <div style={{
-            backgroundColor: 'rgba(255, 255, 255, 0.95)',
-            borderRadius: '24px',
-            padding: '56px',
-            maxWidth: '520px',
-            width: '100%',
-            textAlign: 'center',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 8px 16px -8px rgba(0, 0, 0, 0.1)',
-            position: 'relative',
-            overflow: 'hidden',
-            backdropFilter: 'blur(20px)',
-            border: '1px solid rgba(255, 255, 255, 0.2)'
-          }}>
-            {/* Decorative gradient overlay */}
-            <div style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              height: '140px',
-              background: 'linear-gradient(135deg, #0052CC 0%, #0065FF 50%, #0084FF 100%)',
-              opacity: 0.08,
-              borderRadius: '24px 24px 0 0'
-            }} />
-
-            <div style={{ position: 'relative', zIndex: 1 }}>
-              <div style={{
-                width: '88px',
-                height: '88px',
-                margin: '0 auto 32px',
-                background: 'linear-gradient(135deg, #0052CC 0%, #0065FF 100%)',
-                borderRadius: '24px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '36px',
-                boxShadow: '0 10px 25px -5px rgba(0, 82, 204, 0.4)',
-                position: 'relative',
-                overflow: 'hidden'
-              }}>
-                <div style={{
-                  position: 'absolute',
-                  top: '-50%',
-                  left: '-50%',
-                  width: '200%',
-                  height: '200%',
-                  background: 'linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.2) 50%, transparent 70%)',
-                  animation: 'shimmer 3s infinite'
-                }} />
-                🏢
-              </div>
-
-              <h1 style={{
-                fontSize: '40px',
-                fontWeight: '800',
-                color: '#0F172A',
-                margin: '0 0 20px 0',
-                lineHeight: '1.1',
-                background: 'linear-gradient(135deg, #0F172A 0%, #334155 100%)',
-                backgroundClip: 'text',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent'
-              }}>
-                Enterprise Virtual Office
-              </h1>
-
-              <p style={{
-                fontSize: '18px',
-                color: '#64748B',
-                margin: '0 0 48px 0',
-                lineHeight: '1.6',
-                fontWeight: '500'
-              }}>
-                Premium enterprise-grade collaboration platform with advanced security,
-                HD communications, and comprehensive workflow integration
-              </p>
-
-              <button
-                onClick={handleSignIn}
-                disabled={isSigningIn}
-                style={{
-                  width: '100%',
-                  padding: '20px 32px',
-                  backgroundColor: isSigningIn ? '#94A3B8' : '#0052CC',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '16px',
-                  fontSize: '18px',
-                  fontWeight: '700',
-                  cursor: isSigningIn ? 'not-allowed' : 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '16px',
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                  boxShadow: isSigningIn ? 'none' : '0 10px 25px -5px rgba(0, 82, 204, 0.4), 0 4px 6px -2px rgba(0, 82, 204, 0.1)',
-                  opacity: isSigningIn ? 0.8 : 1,
-                  position: 'relative',
-                  overflow: 'hidden'
-                }}
-                onMouseOver={(e) => !isSigningIn && (e.currentTarget.style.transform = 'translateY(-2px)')}
-                onMouseOut={(e) => !isSigningIn && (e.currentTarget.style.transform = 'translateY(0)')}
-              >
-                {isSigningIn ? (
-                  <>
-                    <div style={{
-                      width: '24px',
-                      height: '24px',
-                      border: '3px solid rgba(255,255,255,0.3)',
-                      borderTop: '3px solid white',
-                      borderRadius: '50%',
-                      animation: 'spin 1s linear infinite'
-                    }} />
-                    Authenticating...
-                  </>
-                ) : (
-                  <>
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                    </svg>
-                    Continue with Google
-                  </>
-                )}
-              </button>
-
-              {authError && (
-                <div style={{
-                  marginTop: '20px',
-                  padding: '16px 20px',
-                  backgroundColor: '#FEF2F2',
-                  border: '1px solid #FECACA',
-                  borderRadius: '12px',
-                  color: '#DC2626',
-                  fontSize: '14px',
-                  lineHeight: '1.5',
-                  textAlign: 'left'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '16px' }}>⚠️</span>
-                    <strong>Authentication Error</strong>
-                  </div>
-                  <div style={{ marginTop: '4px' }}>{authError}</div>
-                </div>
-              )}
-
-              <div style={{
-                marginTop: '40px',
-                padding: '32px',
-                background: 'linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%)',
-                borderRadius: '16px',
-                textAlign: 'left',
-                border: '1px solid #E2E8F0'
-              }}>
-                <h3 style={{
-                  fontSize: '18px',
-                  fontWeight: '700',
-                  color: '#0F172A',
-                  margin: '0 0 20px 0',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}>
-                  <span style={{ fontSize: '20px' }}>✨</span>
-                  Enterprise Features
-                </h3>
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(2, 1fr)',
-                  gap: '16px',
-                  fontSize: '15px',
-                  color: '#475569',
-                  lineHeight: '1.6',
-                  fontWeight: '500'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <span style={{ fontSize: '18px' }}>🎥</span>
-                    4K Video Conferencing
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <span style={{ fontSize: '18px' }}>🖥️</span>
-                    Advanced Screen Sharing
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <span style={{ fontSize: '18px' }}>🎨</span>
-                    Collaborative Whiteboard
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <span style={{ fontSize: '18px' }}>💬</span>
-                    Real-time Messaging
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <span style={{ fontSize: '18px' }}>🏢</span>
-                    Virtual Office Spaces
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <span style={{ fontSize: '18px' }}>🔒</span>
-                    Enterprise Security
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <style jsx>{`
-            @keyframes shimmer {
-              0% { transform: translateX(-100%); }
-              100% { transform: translateX(100%); }
-            }
-            @keyframes spin {
-              from { transform: rotate(0deg); }
-              to { transform: rotate(360deg); }
-            }
-          `}</style>
+          Redirecting to your workspace...
         </div>
-      </>
+      </div>
     );
   }
-
-  // Handle invitation response
-  const handleInvitationResponse = async (invitationId: string, response: 'accepted' | 'rejected') => {
-    if (!user) return;
-    
-    try {
-      await respondToOfficeInvitation(invitationId, response, user.uid);
-      
-      // Refresh invitations list
-      const updatedInvitations = await getUserInvitations(user.uid);
-      setPendingInvitations(updatedInvitations);
-      
-      // Show success message
-      if (response === 'accepted') {
-        // Refresh user data to show new office access
-        const owned = await getOwnedOffices(user.uid);
-        const member = await getMemberOffices(user.uid);
-        setOwnedOffices(owned);
-        setMemberOffices(member);
-      }
-      
-    } catch (error: any) {
-      console.error('Error responding to invitation:', error);
-      setAuthError(error.message || 'Failed to respond to invitation');
-    }
-  };
-
-  // Handle cancelling sent invitations
-  const handleCancelInvitation = async (invitationId: string) => {
-    if (!user) return;
-    
-    try {
-      await cancelInvitation(invitationId);
-      
-      // Refresh sent invitations list
-      const updatedSentInvitations = await getSentInvitations(user.uid);
-      setSentInvitations(updatedSentInvitations);
-      
-    } catch (error: any) {
-      console.error('Error cancelling invitation:', error);
-      setAuthError(error.message || 'Failed to cancel invitation');
-    }
-  };
 
   return (
     <>
       <Head>
-        <title>Enterprise Virtual Office - Dashboard</title>
-        <meta name="description" content="Premium enterprise virtual office platform for team collaboration" />
-        <link rel="icon" href="/favicon.ico" />
+        <title>NexOffice - Next Generation Virtual Office Platform</title>
+        <meta name="description" content="Transform your remote work experience with NexOffice - the premium virtual office platform for modern teams" />
+        <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏢</text></svg>" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
       </Head>
 
       <div style={{
-        minHeight: '100vh',
-        background: 'linear-gradient(135deg, #0F1419 0%, #1E293B 25%, #334155 50%, #475569 100%)',
-        fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-        position: 'relative'
+        fontFamily: '"Inter", sans-serif',
+        backgroundColor: '#0f172a',
+        color: 'white',
+        overflow: 'hidden'
       }}>
-        {/* Header */}
-        <header style={{
-          padding: '24px 32px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '20px',
-          backgroundColor: 'rgba(255, 255, 255, 0.05)',
-          backdropFilter: 'blur(20px)',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <div style={{
-              width: '48px',
-              height: '48px',
-              background: 'linear-gradient(135deg, #0052CC 0%, #0065FF 100%)',
-              borderRadius: '12px',
+        {/* Fixed Navigation */}
+        <motion.nav 
+          initial={{ y: -100 }}
+          animate={{ y: 0 }}
+          transition={{ duration: 0.6 }}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 50,
+            padding: '20px 40px',
+            background: 'rgba(15, 23, 42, 0.95)',
+            backdropFilter: 'blur(20px)',
+            borderBottom: '1px solid rgba(148, 163, 184, 0.1)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
+          }}
+        >
+          {/* Logo */}
+          <motion.div 
+            whileHover={{ scale: 1.05 }}
+            style={{
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '24px',
-              boxShadow: '0 8px 16px -4px rgba(0, 82, 204, 0.4)'
+              gap: '12px'
+            }}
+          >
+            <div style={{
+              fontSize: '28px'
             }}>
               🏢
             </div>
-            <div>
-              <h1 style={{
-                fontSize: '28px',
-                fontWeight: '800',
-                color: 'white',
-                margin: 0,
-                textShadow: '0 2px 4px rgba(0,0,0,0.3)'
-              }}>
-                Enterprise Virtual Office
-              </h1>
-              <p style={{
-                fontSize: '14px',
-                color: 'rgba(255, 255, 255, 0.7)',
-                margin: '2px 0 0 0',
-                fontWeight: '500'
-              }}>
-                Welcome back, {user.displayName?.split(' ')[0]}
-              </p>
-            </div>
-          </div>
+            <span style={{
+              fontSize: '24px',
+              fontWeight: '800',
+              background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+              backgroundClip: 'text',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent'
+            }}>
+              NexOffice
+            </span>
+          </motion.div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
-            {/* Google Profile Image Button */}
-            <button
-              onClick={() => setShowProfile(true)}
-              style={{
-                width: '52px',
-                height: '52px',
-                borderRadius: '50%',
-                backgroundColor: 'transparent',
-                border: '3px solid rgba(255,255,255,0.3)',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-                position: 'relative',
-                overflow: 'hidden',
-                padding: '0'
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.transform = 'scale(1.05)';
-                e.currentTarget.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.2)';
-                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.5)';
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.transform = 'scale(1)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
-                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)';
-              }}
-              title="View Profile"
-            >
-              <img
-                src={user.photoURL || ''}
-                alt={user.displayName || 'Profile'}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  borderRadius: '50%',
-                  objectFit: 'cover'
-                }}
-                onError={(e) => {
-                  // Fallback to user initial if image fails to load
-                  e.currentTarget.style.display = 'none';
-                  const fallbackDiv = e.currentTarget.nextElementSibling as HTMLElement;
-                  if (fallbackDiv) {
-                    fallbackDiv.style.display = 'flex';
-                  }
-                }}
-              />
-              <div style={{
-                position: 'absolute',
-                top: '0',
-                left: '0',
-                width: '100%',
-                height: '100%',
-                borderRadius: '50%',
-                backgroundColor: '#4285F4',
-                display: 'none',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '20px',
-                fontWeight: '700',
-                color: 'white'
-              }}>
-                {user.displayName?.charAt(0)?.toUpperCase() || 'U'}
-              </div>
-            </button>
-          </div>
-        </header>
-
-        {/* Dashboard Content */}
-        <div style={{ padding: '40px 32px' }}>
-          {/* Quick Actions */}
+          {/* Navigation Links */}
           <div style={{
             display: 'flex',
-            justifyContent: 'center',
-            gap: '24px',
-            flexWrap: 'wrap',
-            marginBottom: '48px'
+            gap: '32px',
+            alignItems: 'center'
           }}>
-            <button
-              onClick={() => setShowCreateOffice(true)}
-              style={{
-                padding: '20px 40px',
-                background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.9) 100%)',
-                color: '#0F172A',
-                border: '1px solid rgba(255,255,255,0.2)',
-                borderRadius: '28px',
-                fontSize: '18px',
-                fontWeight: '700',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                boxShadow: '0 20px 40px -12px rgba(0,0,0,0.25), 0 8px 16px -8px rgba(0,0,0,0.1)',
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                minWidth: '220px',
-                justifyContent: 'center',
-                backdropFilter: 'blur(20px)'
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.transform = 'translateY(-4px)';
-                e.currentTarget.style.boxShadow = '0 25px 50px -12px rgba(0,0,0,0.35)';
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 20px 40px -12px rgba(0,0,0,0.25)';
-              }}
+            <Link href="#features" style={{
+              color: '#94a3b8',
+              textDecoration: 'none',
+              fontSize: '16px',
+              fontWeight: '500',
+              transition: 'color 0.3s ease'
+            }}
+            onMouseOver={(e) => e.currentTarget.style.color = '#f1f5f9'}
+            onMouseOut={(e) => e.currentTarget.style.color = '#94a3b8'}
             >
-              <span style={{ fontSize: '20px' }}>➕</span>
-              Create Office
-            </button>
+              Features
+            </Link>
+            <Link href="#pricing" style={{
+              color: '#94a3b8',
+              textDecoration: 'none',
+              fontSize: '16px',
+              fontWeight: '500',
+              transition: 'color 0.3s ease'
+            }}
+            onMouseOver={(e) => e.currentTarget.style.color = '#f1f5f9'}
+            onMouseOut={(e) => e.currentTarget.style.color = '#94a3b8'}
+            >
+              Pricing
+            </Link>
+            <Link href="#about" style={{
+              color: '#94a3b8',
+              textDecoration: 'none',
+              fontSize: '16px',
+              fontWeight: '500',
+              transition: 'color 0.3s ease'
+            }}
+            onMouseOver={(e) => e.currentTarget.style.color = '#f1f5f9'}
+            onMouseOut={(e) => e.currentTarget.style.color = '#94a3b8'}
+            >
+              About
+            </Link>
+          </div>
 
-            {/* Sent Invitations Button for owners */}
-            {sentInvitations.filter(inv => inv.status === 'pending').length > 0 && (
-              <button
-                onClick={() => setShowSentInvitations(true)}
-                style={{
-                  padding: '20px 40px',
-                  background: 'linear-gradient(135deg, #7B68EE 0%, #6A5ACD 100%)',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '28px',
-                  fontSize: '18px',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                  minWidth: '220px',
-                  justifyContent: 'center',
-                  position: 'relative',
-                  boxShadow: '0 20px 40px -12px rgba(123, 104, 238, 0.25)'
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-4px)';
-                  e.currentTarget.style.boxShadow = '0 25px 50px -12px rgba(123, 104, 238, 0.35)';
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 20px 40px -12px rgba(123, 104, 238, 0.25)';
-                }}
-              >
-                <span style={{ fontSize: '20px' }}>📤</span>
-                {sentInvitations.filter(inv => inv.status === 'pending').length} Sent Invitation{sentInvitations.filter(inv => inv.status === 'pending').length !== 1 ? 's' : ''}
-              </button>
-            )}
-
-            <button
-              onClick={() => setShowOfficeSelect(true)}
-              style={{
-                padding: '20px 40px',
+          {/* Auth Buttons */}
+          <div style={{
+            display: 'flex',
+            gap: '16px',
+            alignItems: 'center'
+          }}>
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <Link href="/login" style={{
+                padding: '12px 24px',
                 backgroundColor: 'transparent',
-                color: 'white',
-                border: '2px solid rgba(255,255,255,0.3)',
-                borderRadius: '28px',
-                fontSize: '18px',
-                fontWeight: '700',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                minWidth: '220px',
-                justifyContent: 'center',
-                backdropFilter: 'blur(20px)'
+                color: '#f1f5f9',
+                textDecoration: 'none',
+                borderRadius: '8px',
+                fontSize: '16px',
+                fontWeight: '600',
+                border: '1px solid rgba(148, 163, 184, 0.2)',
+                transition: 'all 0.3s ease'
               }}
               onMouseOver={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.15)';
-                e.currentTarget.style.transform = 'translateY(-4px)';
-                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.5)';
+                e.currentTarget.style.backgroundColor = 'rgba(148, 163, 184, 0.1)';
+                e.currentTarget.style.borderColor = 'rgba(148, 163, 184, 0.4)';
               }}
               onMouseOut={(e) => {
                 e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.borderColor = 'rgba(148, 163, 184, 0.2)';
+              }}
+              >
+                Sign In
+              </Link>
+            </motion.div>
+            
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <Link href="/signup" style={{
+                padding: '12px 24px',
+                background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                color: 'white',
+                textDecoration: 'none',
+                borderRadius: '8px',
+                fontSize: '16px',
+                fontWeight: '600',
+                transition: 'all 0.3s ease',
+                boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.boxShadow = '0 8px 24px rgba(59, 130, 246, 0.4)';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)';
                 e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)';
+              }}
+              >
+                Get Started
+              </Link>
+            </motion.div>
+          </div>
+        </motion.nav>
+
+        {/* Hero Section */}
+        <section style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          position: 'relative',
+          background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%)',
+          overflow: 'hidden'
+        }}>
+          {/* Background Elements */}
+          <motion.div
+            style={{ y: y1 }}
+            className="absolute inset-0"
+          >
+            <div style={{
+              position: 'absolute',
+              top: '10%',
+              left: '10%',
+              width: '300px',
+              height: '300px',
+              background: 'radial-gradient(circle, rgba(59, 130, 246, 0.1) 0%, transparent 70%)',
+              borderRadius: '50%',
+              filter: 'blur(40px)'
+            }} />
+          </motion.div>
+          
+          <motion.div
+            style={{ y: y2 }}
+            className="absolute inset-0"
+          >
+            <div style={{
+              position: 'absolute',
+              top: '60%',
+              right: '10%',
+              width: '400px',
+              height: '400px',
+              background: 'radial-gradient(circle, rgba(139, 92, 246, 0.1) 0%, transparent 70%)',
+              borderRadius: '50%',
+              filter: 'blur(40px)'
+            }} />
+          </motion.div>
+
+          <div style={{
+            maxWidth: '1200px',
+            margin: '0 auto',
+            padding: '0 40px',
+            textAlign: 'center',
+            position: 'relative',
+            zIndex: 10
+          }}>
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+              style={{
+                display: 'inline-block',
+                padding: '8px 20px',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                borderRadius: '50px',
+                fontSize: '14px',
+                fontWeight: '600',
+                marginBottom: '32px',
+                border: '1px solid rgba(59, 130, 246, 0.2)',
+                color: '#93c5fd'
               }}
             >
-              <span style={{ fontSize: '20px' }}>🏢</span>
-              Browse Offices
-            </button>
+              ✨ Next Generation Workspace
+            </motion.div>
 
+            <motion.h1
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.4 }}
+              style={{
+                fontSize: '72px',
+                fontWeight: '900',
+                margin: '0 0 24px 0',
+                lineHeight: '1.1',
+                background: 'linear-gradient(135deg, #f1f5f9 0%, #cbd5e1 100%)',
+                backgroundClip: 'text',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent'
+              }}
+            >
+              Transform Your
+              <br />
+              <span style={{
+                background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                backgroundClip: 'text',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent'
+              }}>
+                Remote Workspace
+              </span>
+            </motion.h1>
 
+            <motion.p
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.6 }}
+              style={{
+                fontSize: '24px',
+                margin: '0 0 48px 0',
+                lineHeight: '1.5',
+                color: '#94a3b8',
+                maxWidth: '600px',
+                margin: '0 auto 48px auto'
+              }}
+            >
+              Experience seamless collaboration with enterprise-grade virtual offices, 
+              HD video conferencing, and real-time team synchronization.
+            </motion.p>
 
-            {/* Office Invitations Button */}
-            {pendingInvitations.length > 0 && (
-              <button
-                onClick={() => setShowInvitations(true)}
-                style={{
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.8 }}
+              style={{
+                display: 'flex',
+                gap: '20px',
+                justifyContent: 'center',
+                alignItems: 'center',
+                marginBottom: '80px'
+              }}
+            >
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                <Link href="/signup" style={{
                   padding: '20px 40px',
-                  background: 'linear-gradient(135deg, #0F9D58 0%, #00875A 100%)',
+                  background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
                   color: 'white',
-                  border: 'none',
-                  borderRadius: '28px',
+                  textDecoration: 'none',
+                  borderRadius: '12px',
                   fontSize: '18px',
                   fontWeight: '700',
-                  cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '12px',
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                  minWidth: '220px',
-                  justifyContent: 'center',
-                  position: 'relative',
-                  boxShadow: '0 20px 40px -12px rgba(15, 157, 88, 0.25)'
+                  boxShadow: '0 10px 30px rgba(59, 130, 246, 0.3)',
+                  transition: 'all 0.3s ease'
                 }}
                 onMouseOver={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-4px)';
-                  e.currentTarget.style.boxShadow = '0 25px 50px -12px rgba(15, 157, 88, 0.35)';
+                  e.currentTarget.style.boxShadow = '0 15px 40px rgba(59, 130, 246, 0.4)';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
                 }}
                 onMouseOut={(e) => {
+                  e.currentTarget.style.boxShadow = '0 10px 30px rgba(59, 130, 246, 0.3)';
                   e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 20px 40px -12px rgba(15, 157, 88, 0.25)';
                 }}
-              >
-                <span style={{ fontSize: '20px' }}>📧</span>
-                {pendingInvitations.length} Invitation{pendingInvitations.length !== 1 ? 's' : ''}
-                <div style={{
-                  position: 'absolute',
-                  top: '-8px',
-                  right: '-8px',
-                  width: '24px',
-                  height: '24px',
-                  backgroundColor: '#DB4437',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '12px',
-                  fontWeight: '700',
-                  animation: 'pulse 2s infinite'
-                }}>
-                  {pendingInvitations.length}
-                </div>
-              </button>
-            )}
-          </div>
-
-          {/* Recent Rooms Section */}
-          {recentRooms.length > 0 && (
-            <div style={{
-              marginBottom: '48px',
-              padding: '32px',
-              background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
-              borderRadius: '24px',
-              border: '1px solid rgba(255,255,255,0.1)',
-              backdropFilter: 'blur(20px)'
-            }}>
-              <h2 style={{
-                fontSize: '24px',
-                fontWeight: '800',
-                color: 'white',
-                margin: '0 0 24px 0',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px'
-              }}>
-                <span style={{ fontSize: '28px' }}>⏰</span>
-                Recent Rooms
-              </h2>
-              
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-                gap: '16px'
-              }}>
-                {recentRooms.map((room) => (
-                  <div
-                    key={room.roomId}
-                    onClick={() => router.push(`/room/${room.roomId}`)}
-                    style={{
-                      padding: '20px',
-                      background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
-                      borderRadius: '16px',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      cursor: 'pointer',
-                      transition: 'all 0.3s ease'
-                    }}
-                    onMouseOver={(e) => {
-                      e.currentTarget.style.transform = 'translateY(-2px)';
-                      e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.15)';
-                    }}
-                    onMouseOut={(e) => {
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
-                    }}
-                  >
-                    <div style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'flex-start',
-                      marginBottom: '12px'
-                    }}>
-                      <h3 style={{
-                        fontSize: '18px',
-                        fontWeight: '700',
-                        color: 'white',
-                        margin: 0
-                      }}>
-                        {room.roomName}
-                      </h3>
-                      <span style={{
-                        padding: '4px 8px',
-                        backgroundColor: room.role === 'owner' ? '#0052CC' : room.role === 'member' ? '#00875A' : '#BF2600',
-                        color: 'white',
-                        borderRadius: '12px',
-                        fontSize: '11px',
-                        fontWeight: '600',
-                        textTransform: 'uppercase'
-                      }}>
-                        {room.role}
-                      </span>
-                    </div>
-                    <p style={{
-                      fontSize: '14px',
-                      color: 'rgba(255,255,255,0.7)',
-                      margin: '0 0 8px 0'
-                    }}>
-                      {room.officeName}
-                    </p>
-                    <p style={{
-                      fontSize: '12px',
-                      color: 'rgba(255,255,255,0.5)',
-                      margin: 0
-                    }}>
-                      Last active: {new Date(room.lastActiveAt).toLocaleDateString()}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Owned Offices Section */}
-          {ownedOffices.length > 0 && (
-            <div style={{
-              marginBottom: '48px',
-              padding: '32px',
-              background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
-              borderRadius: '24px',
-              border: '1px solid rgba(255,255,255,0.1)',
-              backdropFilter: 'blur(20px)'
-            }}>
-              <h2 style={{
-                fontSize: '24px',
-                fontWeight: '800',
-                color: 'white',
-                margin: '0 0 24px 0',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px'
-              }}>
-                <span style={{ fontSize: '28px' }}>👑</span>
-                Your Offices
-              </h2>
-              
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-                gap: '16px'
-              }}>
-                {ownedOffices.map((officeId) => (
-                  <div
-                    key={officeId}
-                    onClick={() => router.push(`/office/${officeId}`)}
-                    style={{
-                      padding: '20px',
-                      background: 'linear-gradient(135deg, #0052CC20 0%, #0052CC10 100%)',
-                      borderRadius: '16px',
-                      border: '2px solid #0052CC',
-                      cursor: 'pointer',
-                      transition: 'all 0.3s ease',
-                      textAlign: 'center'
-                    }}
-                    onMouseOver={(e) => {
-                      e.currentTarget.style.transform = 'translateY(-2px)';
-                      e.currentTarget.style.backgroundColor = '#0052CC30';
-                    }}
-                    onMouseOut={(e) => {
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.backgroundColor = '#0052CC20';
-                    }}
-                  >
-                    <div style={{ fontSize: '32px', marginBottom: '12px' }}>🏢</div>
-                    <h3 style={{
-                      fontSize: '16px',
-                      fontWeight: '700',
-                      color: 'white',
-                      margin: '0 0 8px 0'
-                    }}>
-                      Office
-                    </h3>
-                    <p style={{
-                      fontSize: '12px',
-                      color: 'rgba(255,255,255,0.7)',
-                      margin: 0,
-                      fontFamily: 'monospace'
-                    }}>
-                      {officeId.slice(0, 8)}...
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Member Offices Section */}
-          {memberOffices.length > 0 && (
-            <div style={{
-              marginBottom: '48px',
-              padding: '32px',
-              background: 'linear-gradient(135deg, rgba(15, 157, 88, 0.1) 0%, rgba(0, 135, 90, 0.05) 100%)',
-              borderRadius: '24px',
-              border: '1px solid rgba(15, 157, 88, 0.2)',
-              backdropFilter: 'blur(20px)'
-            }}>
-              <h2 style={{
-                fontSize: '24px',
-                fontWeight: '800',
-                color: 'white',
-                margin: '0 0 24px 0',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px'
-              }}>
-                <span style={{ fontSize: '28px' }}>🤝</span>
-                Joined Offices
-              </h2>
-              
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-                gap: '16px'
-              }}>
-                {memberOffices.map((officeId) => (
-                  <div
-                    key={officeId}
-                    onClick={() => router.push(`/office/${officeId}`)}
-                    style={{
-                      padding: '20px',
-                      background: 'linear-gradient(135deg, #0F9D5820 0%, #0F9D5810 100%)',
-                      borderRadius: '16px',
-                      border: '2px solid #0F9D58',
-                      cursor: 'pointer',
-                      transition: 'all 0.3s ease',
-                      textAlign: 'center'
-                    }}
-                    onMouseOver={(e) => {
-                      e.currentTarget.style.transform = 'translateY(-2px)';
-                      e.currentTarget.style.backgroundColor = '#0F9D5830';
-                    }}
-                    onMouseOut={(e) => {
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.backgroundColor = '#0F9D5820';
-                    }}
-                  >
-                    <div style={{ fontSize: '32px', marginBottom: '12px' }}>🏢</div>
-                    <h3 style={{
-                      fontSize: '16px',
-                      fontWeight: '700',
-                      color: 'white',
-                      margin: '0 0 8px 0'
-                    }}>
-                      Office
-                    </h3>
-                    <p style={{
-                      fontSize: '12px',
-                      color: 'rgba(255,255,255,0.7)',
-                      margin: 0,
-                      fontFamily: 'monospace'
-                    }}>
-                      {officeId.slice(0, 8)}...
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Continue with existing modals... */}
-        {/* Demo Office Map */}
-        {showOfficeSelect && (
-          <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.8)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            backdropFilter: 'blur(10px)',
-            padding: '20px'
-          }}>
-            <div style={{
-              position: 'relative',
-              width: '100%',
-              maxWidth: '1200px',
-              height: '70vh',
-              minHeight: '500px',
-              background: 'linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%)',
-              borderRadius: '32px',
-              border: '1px solid rgba(255,255,255,0.2)',
-              backdropFilter: 'blur(20px)',
-              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
-              overflow: 'hidden'
-            }}>
-              {/* Premium grid pattern */}
-              <div style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                backgroundImage: `
-                  linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
-                  linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)
-                `,
-                backgroundSize: '40px 40px',
-                opacity: 0.6
-              }} />
-
-              {/* Room elements */}
-              {defaultOffices.map((office) => (
-                <div
-                  key={office.id}
-                  style={getOfficeStyle(office)}
-                  onMouseEnter={() => setHoveredOffice(office.id)}
-                  onMouseLeave={() => setHoveredOffice(null)}
-                  onClick={() => handleOfficeClick(office.id)}
                 >
-                  <div style={{
-                    fontSize: 'clamp(2.5rem, 5vw, 3.5rem)',
-                    marginBottom: '1rem',
-                    filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.2))'
-                  }}>
-                    {office.icon}
-                  </div>
-                  <h3 style={{
-                    color: hoveredOffice === office.id ? 'white' : '#0F172A',
-                    margin: '0 0 0.5rem 0',
-                    fontSize: 'clamp(1rem, 2.5vw, 1.3rem)',
-                    fontWeight: '800',
-                    textAlign: 'center',
-                    textShadow: hoveredOffice === office.id ? '0 2px 4px rgba(0,0,0,0.3)' : 'none'
-                  }}>
-                    {office.name}
-                  </h3>
-                  <p style={{
-                    color: hoveredOffice === office.id ? 'rgba(255,255,255,0.9)' : '#64748B',
-                    margin: '0 0 0.75rem 0',
-                    fontSize: 'clamp(0.8rem, 1.8vw, 0.95rem)',
-                    textAlign: 'center',
-                    fontWeight: '600',
-                    padding: '0 12px',
-                    lineHeight: '1.4'
-                  }}>
-                    {office.description}
-                  </p>
-                  <div style={{
-                    padding: '8px 16px',
-                    backgroundColor: hoveredOffice === office.id ? 'rgba(255,255,255,0.25)' : office.color,
-                    color: 'white',
-                    borderRadius: '20px',
-                    fontSize: 'clamp(0.7rem, 1.4vw, 0.85rem)',
+                  🚀 Start Free Trial
+                </Link>
+              </motion.div>
+
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                <button
+                  onClick={() => setShowDemo(true)}
+                  style={{
+                    padding: '20px 40px',
+                    backgroundColor: 'rgba(148, 163, 184, 0.1)',
+                    color: '#f1f5f9',
+                    border: '1px solid rgba(148, 163, 184, 0.2)',
+                    borderRadius: '12px',
+                    fontSize: '18px',
                     fontWeight: '700',
-                    boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(148, 163, 184, 0.2)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(148, 163, 184, 0.1)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                >
+                  ▶️ Watch Demo
+                </button>
+              </motion.div>
+            </motion.div>
+
+            {/* Key Benefits */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 1.0 }}
+              style={{
+                display: 'flex',
+                justifyContent: 'center',
+                gap: '60px',
+                marginTop: '60px'
+              }}
+            >
+              {[
+                { icon: '🚀', label: 'Launch Ready' },
+                { icon: '🔒', label: 'Secure by Design' },
+                { icon: '⚡', label: 'Lightning Fast' }
+              ].map((benefit, index) => (
+                <div key={index} style={{ textAlign: 'center' }}>
+                  <div style={{
+                    fontSize: '32px',
+                    marginBottom: '8px'
                   }}>
-                    {office.participants}/{office.maxParticipants} members
+                    {benefit.icon}
+                  </div>
+                  <div style={{
+                    fontSize: '16px',
+                    color: '#64748b',
+                    fontWeight: '500'
+                  }}>
+                    {benefit.label}
                   </div>
                 </div>
               ))}
-
-              {/* Close button */}
-              <button
-                onClick={() => setShowOfficeSelect(false)}
-                style={{
-                  position: 'absolute',
-                  top: '24px',
-                  right: '24px',
-                  width: '48px',
-                  height: '48px',
-                  backgroundColor: 'rgba(255,255,255,0.9)',
-                  color: '#0F172A',
-                  border: 'none',
-                  borderRadius: '50%',
-                  cursor: 'pointer',
-                  fontSize: '24px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transition: 'all 0.3s ease',
-                  boxShadow: '0 8px 16px -4px rgba(0,0,0,0.1)',
-                  fontWeight: '600'
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(255,255,255,1)';
-                  e.currentTarget.style.transform = 'scale(1.1)';
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.9)';
-                  e.currentTarget.style.transform = 'scale(1)';
-                }}
-              >
-                ×
-              </button>
-            </div>
+            </motion.div>
           </div>
-        )}
+        </section>
 
-        {/* Create Office Modal */}
-        {showCreateOffice && (
+        {/* Features Section */}
+        <section id="features" style={{
+          padding: '120px 40px',
+          backgroundColor: '#1e293b',
+          position: 'relative'
+        }}>
           <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.8)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            backdropFilter: 'blur(10px)',
-            padding: '20px'
+            maxWidth: '1200px',
+            margin: '0 auto'
           }}>
-            <div style={{
-              backgroundColor: 'white',
-              borderRadius: '24px',
-              padding: '40px',
-              width: '100%',
-              maxWidth: '480px',
-              textAlign: 'center',
-              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)'
-            }}>
-                               <h2 style={{
-                   fontSize: '28px',
-                   fontWeight: '800',
-                   color: '#0F172A',
-                   margin: '0 0 12px 0'
-                 }}>
-                   Create Your Office
-                 </h2>
-                 <p style={{
-                   color: '#64748B',
-                   margin: '0 0 32px 0',
-                   fontSize: '16px',
-                   lineHeight: '1.5'
-                 }}>
-                   Create a unique virtual office space for your team
-                 </p>
-   
-                 <input
-                   type="text"
-                   value={newOfficeName}
-                   onChange={(e) => setNewOfficeName(e.target.value)}
-                   placeholder="Office name (e.g., Marketing Team HQ)..."
-                   maxLength={50}
-                   style={{
-                     width: '100%',
-                     padding: '16px 20px',
-                     fontSize: '16px',
-                     border: '2px solid #E2E8F0',
-                     borderRadius: '12px',
-                     outline: 'none',
-                     marginBottom: '16px',
-                     transition: 'all 0.3s ease',
-                     fontWeight: '500',
-                     boxSizing: 'border-box'
-                   }}
-                   onFocus={(e) => {
-                     e.target.style.borderColor = '#0052CC';
-                     e.target.style.boxShadow = '0 0 0 3px rgba(0, 82, 204, 0.1)';
-                   }}
-                   onBlur={(e) => {
-                     e.target.style.borderColor = '#E2E8F0';
-                     e.target.style.boxShadow = 'none';
-                   }}
-                   autoFocus
-                 />
-
-                 <textarea
-                   value={newOfficeDescription}
-                   onChange={(e) => setNewOfficeDescription(e.target.value)}
-                   placeholder="Description (optional)..."
-                   maxLength={200}
-                   rows={3}
-                   style={{
-                     width: '100%',
-                     padding: '16px 20px',
-                     fontSize: '14px',
-                     border: '2px solid #E2E8F0',
-                     borderRadius: '12px',
-                     outline: 'none',
-                     marginBottom: '24px',
-                     transition: 'all 0.3s ease',
-                     fontWeight: '500',
-                     boxSizing: 'border-box',
-                     resize: 'none',
-                     fontFamily: 'inherit'
-                   }}
-                   onFocus={(e) => {
-                     e.target.style.borderColor = '#0052CC';
-                     e.target.style.boxShadow = '0 0 0 3px rgba(0, 82, 204, 0.1)';
-                   }}
-                   onBlur={(e) => {
-                     e.target.style.borderColor = '#E2E8F0';
-                     e.target.style.boxShadow = 'none';
-                   }}
-                 />
-
-              <input
-                type="text"
-                value={newOfficeDescription}
-                onChange={(e) => setNewOfficeDescription(e.target.value)}
-                placeholder="Enter office description (optional)"
-                maxLength={100}
-                style={{
-                  width: '100%',
-                  padding: '20px 24px',
-                  fontSize: '16px',
-                  border: '2px solid #E2E8F0',
-                  borderRadius: '16px',
-                  outline: 'none',
-                  marginBottom: '32px',
-                  transition: 'all 0.3s ease',
-                  fontWeight: '600',
-                  boxSizing: 'border-box'
-                }}
-                onFocus={(e) => {
-                  e.target.style.borderColor = '#0052CC';
-                  e.target.style.boxShadow = '0 0 0 3px rgba(0, 82, 204, 0.1)';
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = '#E2E8F0';
-                  e.target.style.boxShadow = 'none';
-                }}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter' && newOfficeDescription.trim()) {
-                    // No action on Enter for description
-                  }
-                }}
-              />
-
-              {authError && (
-                <div style={{
-                  marginBottom: '20px',
-                  padding: '12px 16px',
-                  backgroundColor: '#FEF2F2',
-                  border: '1px solid #FECACA',
-                  borderRadius: '12px',
-                  color: '#DC2626',
-                  fontSize: '14px',
-                  textAlign: 'left'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '16px' }}>⚠️</span>
-                    {authError}
-                  </div>
-                </div>
-              )}
-
-              <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-                <button
-                  onClick={() => {
-                    setShowCreateOffice(false);
-                    setNewOfficeName('');
-                    setNewOfficeDescription('');
-                    setAuthError('');
-                  }}
-                  style={{
-                    flex: 1,
-                    minWidth: '120px',
-                    padding: '16px 24px',
-                    backgroundColor: '#F3F4F6',
-                    color: '#374151',
-                    border: 'none',
-                    borderRadius: '16px',
-                    fontSize: '16px',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease'
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={createNewOffice}
-                  disabled={!newOfficeName.trim() || isCreatingOffice}
-                  style={{
-                    flex: 1,
-                    minWidth: '120px',
-                    padding: '16px 24px',
-                    background: newOfficeName.trim() && !isCreatingOffice
-                      ? 'linear-gradient(135deg, #0052CC 0%, #0065FF 100%)'
-                      : '#9CA3AF',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '16px',
-                    fontSize: '16px',
-                    fontWeight: '700',
-                    cursor: newOfficeName.trim() && !isCreatingOffice ? 'pointer' : 'not-allowed',
-                    transition: 'all 0.3s ease'
-                  }}
-                >
-                  {isCreatingOffice ? (
-                    <>
-                      <div style={{
-                        width: '24px',
-                        height: '24px',
-                        border: '3px solid rgba(255,255,255,0.3)',
-                        borderTop: '3px solid white',
-                        borderRadius: '50%',
-                        animation: 'spin 1s linear infinite'
-                      }} />
-                      Creating...
-                    </>
-                  ) : (
-                    'Create Office 🏢'
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Join by Code Modal */}
-        {showNameInput && (
-          <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.8)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            backdropFilter: 'blur(10px)',
-            padding: '20px'
-          }}>
-            <div style={{
-              backgroundColor: 'white',
-              borderRadius: '24px',
-              padding: '40px',
-              width: '100%',
-              maxWidth: '480px',
-              textAlign: 'center',
-              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
-              transform: isEntering ? 'scale(0.95) rotateX(5deg)' : 'scale(1)',
-              transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
-            }}>
-              {!isEntering ? (
-                <>
-                  <div style={{ fontSize: '64px', marginBottom: '20px' }}>
-                    {defaultOffices.find(o => o.id === selectedOffice)?.icon}
-                  </div>
-                  <h2 style={{
-                    color: defaultOffices.find(o => o.id === selectedOffice)?.color,
-                    margin: '0 0 12px 0',
-                    fontSize: '28px',
-                    fontWeight: '800'
-                  }}>
-                    Joining {defaultOffices.find(o => o.id === selectedOffice)?.name}
-                  </h2>
-                  <p style={{
-                    color: '#64748B',
-                    margin: '0 0 32px 0',
-                    fontSize: '16px',
-                    lineHeight: '1.5'
-                  }}>
-                    {defaultOffices.find(o => o.id === selectedOffice)?.description}
-                  </p>
-                  <input
-                    type="text"
-                    placeholder="Your display name"
-                    value={userName}
-                    onChange={(e) => setUserName(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && joinRoom()}
-                    style={{
-                      width: '100%',
-                      padding: '16px 20px',
-                      border: '2px solid #E2E8F0',
-                      borderRadius: '16px',
-                      fontSize: '16px',
-                      marginBottom: '32px',
-                      outline: 'none',
-                      boxSizing: 'border-box',
-                      fontWeight: '500',
-                      transition: 'border-color 0.3s ease'
-                    }}
-                    autoFocus
-                  />
-                  <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-                    <button
-                      onClick={() => {
-                        setShowNameInput(false);
-                        setSelectedOffice(null);
-                        setUserName(user?.displayName || '');
-                      }}
-                      style={{
-                        flex: 1,
-                        minWidth: '120px',
-                        padding: '16px 24px',
-                        backgroundColor: '#F3F4F6',
-                        color: '#374151',
-                        border: 'none',
-                        borderRadius: '16px',
-                        fontSize: '16px',
-                        fontWeight: '600',
-                        cursor: 'pointer',
-                        transition: 'all 0.3s ease'
-                      }}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={joinRoom}
-                      disabled={!userName.trim()}
-                      style={{
-                        flex: 1,
-                        minWidth: '120px',
-                        padding: '16px 24px',
-                        background: userName.trim() 
-                          ? `linear-gradient(135deg, ${defaultOffices.find(o => o.id === selectedOffice)?.color} 0%, ${defaultOffices.find(o => o.id === selectedOffice)?.color}CC 100%)`
-                          : '#9CA3AF',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '16px',
-                        fontSize: '16px',
-                        fontWeight: '700',
-                        cursor: userName.trim() ? 'pointer' : 'not-allowed',
-                        transition: 'all 0.3s ease'
-                      }}
-                    >
-                      Join Room 🚀
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <div>
-                  <div style={{
-                    fontSize: '80px',
-                    marginBottom: '20px',
-                    animation: 'spin 2s linear infinite'
-                  }}>
-                    🚀
-                  </div>
-                  <h2 style={{
-                    color: defaultOffices.find(o => o.id === selectedOffice)?.color,
-                    margin: 0,
-                    fontSize: '24px',
-                    fontWeight: '800'
-                  }}>
-                    Entering room...
-                  </h2>
-                  <p style={{
-                    color: '#64748B',
-                    margin: '12px 0 0 0',
-                    fontSize: '16px'
-                  }}>
-                    Setting up your workspace
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Email Invitation Modal */}
-        {showInviteModal && (
-          <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.8)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            backdropFilter: 'blur(10px)',
-            padding: '20px'
-          }}>
-            <div style={{
-              backgroundColor: 'white',
-              borderRadius: '24px',
-              padding: '40px',
-              width: '100%',
-              maxWidth: '500px',
-              textAlign: 'center',
-              boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)'
-            }}>
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8 }}
+              viewport={{ once: true }}
+              style={{ textAlign: 'center', marginBottom: '80px' }}
+            >
               <h2 style={{
-                fontSize: '28px',
+                fontSize: '48px',
                 fontWeight: '800',
-                color: '#0F172A',
-                margin: '0 0 12px 0'
+                margin: '0 0 24px 0',
+                background: 'linear-gradient(135deg, #f1f5f9 0%, #cbd5e1 100%)',
+                backgroundClip: 'text',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent'
               }}>
-                Send Invitation
+                Powerful Features for Modern Teams
               </h2>
               <p style={{
-                color: '#64748B',
-                margin: '0 0 32px 0',
-                fontSize: '16px',
-                lineHeight: '1.5'
+                fontSize: '20px',
+                color: '#94a3b8',
+                maxWidth: '600px',
+                margin: '0 auto'
               }}>
-                Invite someone to join your virtual office
+                Everything you need to create immersive virtual workspaces and boost team productivity
               </p>
+            </motion.div>
 
-              <input
-                type="email"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-                placeholder="Enter email address..."
-                style={{
-                  width: '100%',
-                  padding: '16px 20px',
-                  fontSize: '16px',
-                  border: '2px solid #E2E8F0',
-                  borderRadius: '12px',
-                  outline: 'none',
-                  marginBottom: '16px',
-                  transition: 'all 0.3s ease',
-                  fontWeight: '500',
-                  boxSizing: 'border-box'
-                }}
-                onFocus={(e) => {
-                  e.target.style.borderColor = '#0052CC';
-                  e.target.style.boxShadow = '0 0 0 3px rgba(0, 82, 204, 0.1)';
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = '#E2E8F0';
-                  e.target.style.boxShadow = 'none';
-                }}
-                autoFocus
-              />
-
-              <textarea
-                value={inviteMessage}
-                onChange={(e) => setInviteMessage(e.target.value)}
-                placeholder="Add a personal message (optional)..."
-                maxLength={200}
-                rows={3}
-                style={{
-                  width: '100%',
-                  padding: '16px 20px',
-                  fontSize: '14px',
-                  border: '2px solid #E2E8F0',
-                  borderRadius: '12px',
-                  outline: 'none',
-                  marginBottom: '24px',
-                  transition: 'all 0.3s ease',
-                  fontWeight: '500',
-                  boxSizing: 'border-box',
-                  resize: 'none',
-                  fontFamily: 'inherit'
-                }}
-                onFocus={(e) => {
-                  e.target.style.borderColor = '#0052CC';
-                  e.target.style.boxShadow = '0 0 0 3px rgba(0, 82, 204, 0.1)';
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = '#E2E8F0';
-                  e.target.style.boxShadow = 'none';
-                }}
-              />
-
-              {authError && (
-                <div style={{
-                  marginBottom: '20px',
-                  padding: '12px 16px',
-                  backgroundColor: '#FEF2F2',
-                  border: '1px solid #FECACA',
-                  borderRadius: '12px',
-                  color: '#DC2626',
-                  fontSize: '14px',
-                  textAlign: 'left'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '16px' }}>⚠️</span>
-                    {authError}
-                  </div>
-                </div>
-              )}
-
-              <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-                <button
-                  onClick={() => {
-                    setShowInviteModal(false);
-                    setInviteEmail('');
-                    setInviteMessage('');
-                    setSelectedOfficeForInvite(null);
-                    setAuthError('');
-                  }}
-                  style={{
-                    flex: 1,
-                    minWidth: '120px',
-                    padding: '16px 24px',
-                    backgroundColor: '#F3F4F6',
-                    color: '#374151',
-                    border: 'none',
-                    borderRadius: '16px',
-                    fontSize: '16px',
-                    fontWeight: '600',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease'
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={sendInvitation}
-                  disabled={!inviteEmail.trim()}
-                  style={{
-                    flex: 1,
-                    minWidth: '120px',
-                    padding: '16px 24px',
-                    background: inviteEmail.trim() 
-                      ? 'linear-gradient(135deg, #0052CC 0%, #0065FF 100%)'
-                      : '#9CA3AF',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '16px',
-                    fontSize: '16px',
-                    fontWeight: '700',
-                    cursor: inviteEmail.trim() ? 'pointer' : 'not-allowed',
-                    transition: 'all 0.3s ease'
-                  }}
-                >
-                  Send Invitation 📧
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Success Toast */}
-        {copySuccess && (
-          <div style={{
-            position: 'fixed',
-            bottom: '24px',
-            right: '24px',
-            background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-            color: 'white',
-            padding: '16px 24px',
-            borderRadius: '16px',
-            fontSize: '14px',
-            fontWeight: '600',
-            boxShadow: '0 10px 25px -5px rgba(16, 185, 129, 0.4)',
-            zIndex: 1001,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}>
-            <span style={{ fontSize: '18px' }}>✅</span>
-            Invitation sent successfully!
-          </div>
-        )}
-
-        {/* Office Invitations Modal */}
-        {showInvitations && (
-          <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.8)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            backdropFilter: 'blur(10px)',
-            padding: '20px'
-          }}>
             <div style={{
-              width: '100%',
-              maxWidth: '600px',
-              maxHeight: '80vh',
-              backgroundColor: '#1F1F1F',
-              borderRadius: '20px',
-              border: '1px solid #333',
-              overflow: 'hidden',
-              display: 'flex',
-              flexDirection: 'column'
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
+              gap: '40px'
             }}>
-              {/* Header */}
-              <div style={{
-                padding: '24px',
-                borderBottom: '1px solid #333',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-              }}>
-                <div>
-                  <h2 style={{
+              {[
+                {
+                  icon: '🎥',
+                  title: 'Video Conferencing',
+                  description: 'Crystal clear video calls with advanced noise cancellation and real-time collaboration tools'
+                },
+                {
+                  icon: '🖥️',
+                  title: 'Screen Sharing & Control',
+                  description: 'Share your screen with pixel-perfect quality and allow remote control for seamless collaboration'
+                },
+                {
+                  icon: '🎨',
+                  title: 'Interactive Whiteboard',
+                  description: 'Brainstorm and visualize ideas together with our advanced collaborative whiteboard tools'
+                },
+                {
+                  icon: '💬',
+                  title: 'Real-time Messaging',
+                  description: 'Instant messaging with file sharing, emoji reactions, and threaded conversations'
+                },
+                {
+                  icon: '🏢',
+                  title: 'Virtual Office Spaces',
+                  description: 'Create custom virtual environments that reflect your company culture and workflow'
+                },
+                {
+                  icon: '🔒',
+                  title: 'Enterprise Security',
+                  description: 'End-to-end encryption, SSO integration, and compliance with industry standards'
+                }
+              ].map((feature, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: index * 0.1 }}
+                  viewport={{ once: true }}
+                  whileHover={{ y: -5 }}
+                  style={{
+                    padding: '40px',
+                    backgroundColor: 'rgba(15, 23, 42, 0.5)',
+                    borderRadius: '16px',
+                    border: '1px solid rgba(148, 163, 184, 0.1)',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(15, 23, 42, 0.8)';
+                    e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.3)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(15, 23, 42, 0.5)';
+                    e.currentTarget.style.borderColor = 'rgba(148, 163, 184, 0.1)';
+                  }}
+                >
+                  <div style={{
+                    fontSize: '48px',
+                    marginBottom: '24px'
+                  }}>
+                    {feature.icon}
+                  </div>
+                  <h3 style={{
                     fontSize: '24px',
                     fontWeight: '700',
-                    color: '#0F9D58',
+                    margin: '0 0 16px 0',
+                    color: '#f1f5f9'
+                  }}>
+                    {feature.title}
+                  </h3>
+                  <p style={{
+                    fontSize: '16px',
+                    color: '#94a3b8',
+                    lineHeight: '1.6',
                     margin: 0
                   }}>
-                    Office Invitations
-                  </h2>
-                  <p style={{
-                    fontSize: '14px',
-                    color: 'rgba(255,255,255,0.7)',
-                    margin: '4px 0 0 0'
-                  }}>
-                    {pendingInvitations.length} pending invitation{pendingInvitations.length !== 1 ? 's' : ''}
+                    {feature.description}
                   </p>
-                </div>
-                <button
-                  onClick={() => setShowInvitations(false)}
-                  style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '50%',
-                    backgroundColor: '#DB4437',
-                    color: 'white',
-                    border: 'none',
-                    cursor: 'pointer',
-                    fontSize: '16px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}
-                >
-                  ✕
-                </button>
-              </div>
-
-              {/* Content */}
-              <div style={{
-                flex: 1,
-                padding: '24px',
-                overflowY: 'auto'
-              }}>
-                {pendingInvitations.length === 0 ? (
-                  <div style={{
-                    textAlign: 'center',
-                    padding: '40px 20px',
-                    color: 'rgba(255,255,255,0.7)'
-                  }}>
-                    <div style={{ fontSize: '48px', marginBottom: '16px' }}>📫</div>
-                    <p>No pending invitations</p>
-                  </div>
-                ) : (
-                  <div style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '16px'
-                  }}>
-                    {pendingInvitations.map((invitation: any) => (
-                      <InvitationCard
-                        key={invitation.id}
-                        invitation={invitation}
-                        onRespond={handleInvitationResponse}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
+                </motion.div>
+              ))}
             </div>
           </div>
+        </section>
+
+        {/* Pricing Section */}
+        <section id="pricing" style={{
+          padding: '120px 40px',
+          backgroundColor: '#0f172a'
+        }}>
+          <div style={{
+            maxWidth: '1200px',
+            margin: '0 auto'
+          }}>
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8 }}
+              viewport={{ once: true }}
+              style={{ textAlign: 'center', marginBottom: '80px' }}
+            >
+              <h2 style={{
+                fontSize: '48px',
+                fontWeight: '800',
+                margin: '0 0 24px 0',
+                background: 'linear-gradient(135deg, #f1f5f9 0%, #cbd5e1 100%)',
+                backgroundClip: 'text',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent'
+              }}>
+                Simple, Transparent Pricing
+              </h2>
+              <p style={{
+                fontSize: '20px',
+                color: '#94a3b8',
+                maxWidth: '600px',
+                margin: '0 auto'
+              }}>
+                Choose the perfect plan for your team size and requirements
+              </p>
+            </motion.div>
+
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+              gap: '40px',
+              maxWidth: '900px',
+              margin: '0 auto'
+            }}>
+              {[
+                {
+                  name: 'Starter',
+                  price: '$9',
+                  period: 'per user/month',
+                  features: ['Up to 10 team members', 'Video calls', 'Screen sharing', 'Basic integrations'],
+                  popular: false
+                },
+                {
+                  name: 'Professional',
+                  price: '$19',
+                  period: 'per user/month',
+                  features: ['Up to 50 team members', 'Advanced analytics', 'Custom branding', 'Priority support'],
+                  popular: true
+                },
+                {
+                  name: 'Enterprise',
+                  price: 'Custom',
+                  period: 'contact sales',
+                  features: ['Unlimited team members', 'SSO integration', 'Advanced security', 'Dedicated support'],
+                  popular: false
+                }
+              ].map((plan, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: index * 0.1 }}
+                  viewport={{ once: true }}
+                  whileHover={{ y: -5 }}
+                  style={{
+                    padding: '40px',
+                    backgroundColor: plan.popular ? 'rgba(59, 130, 246, 0.1)' : 'rgba(30, 41, 59, 0.5)',
+                    borderRadius: '16px',
+                    border: plan.popular ? '2px solid #3b82f6' : '1px solid rgba(148, 163, 184, 0.1)',
+                    position: 'relative',
+                    transition: 'all 0.3s ease'
+                  }}
+                >
+                  {plan.popular && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '-12px',
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      padding: '6px 20px',
+                      backgroundColor: '#3b82f6',
+                      color: 'white',
+                      borderRadius: '20px',
+                      fontSize: '14px',
+                      fontWeight: '600'
+                    }}>
+                      Most Popular
+                    </div>
                   )}
-
-        {/* Sent Invitations Modal */}
-        {showSentInvitations && (
-          <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.8)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            backdropFilter: 'blur(10px)',
-            padding: '20px'
-          }}>
-            <div style={{
-              width: '100%',
-              maxWidth: '700px',
-              maxHeight: '80vh',
-              backgroundColor: '#1F1F1F',
-              borderRadius: '20px',
-              border: '1px solid #333',
-              overflow: 'hidden',
-              display: 'flex',
-              flexDirection: 'column'
-            }}>
-              {/* Header */}
-              <div style={{
-                padding: '24px',
-                borderBottom: '1px solid #333',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-              }}>
-                <div>
-                  <h2 style={{
+                  
+                  <h3 style={{
                     fontSize: '24px',
                     fontWeight: '700',
-                    color: '#7B68EE',
-                    margin: 0
+                    margin: '0 0 16px 0',
+                    color: '#f1f5f9'
                   }}>
-                    Sent Invitations
-                  </h2>
-                  <p style={{
-                    fontSize: '14px',
-                    color: 'rgba(255,255,255,0.7)',
-                    margin: '4px 0 0 0'
+                    {plan.name}
+                  </h3>
+                  
+                  <div style={{ marginBottom: '32px' }}>
+                    <span style={{
+                      fontSize: '48px',
+                      fontWeight: '800',
+                      color: '#3b82f6'
+                    }}>
+                      {plan.price}
+                    </span>
+                    <span style={{
+                      fontSize: '16px',
+                      color: '#94a3b8',
+                      marginLeft: '8px'
+                    }}>
+                      {plan.period}
+                    </span>
+                  </div>
+                  
+                  <ul style={{
+                    listStyle: 'none',
+                    padding: 0,
+                    margin: '0 0 32px 0'
                   }}>
-                    Manage your office invitations
-                  </p>
-                </div>
-                <button
-                  onClick={() => setShowSentInvitations(false)}
+                    {plan.features.map((feature, featureIndex) => (
+                      <li key={featureIndex} style={{
+                        padding: '8px 0',
+                        color: '#94a3b8',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px'
+                      }}>
+                        <span style={{ color: '#22c55e' }}>✓</span>
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
+                  
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    style={{
+                      width: '100%',
+                      padding: '16px',
+                      backgroundColor: plan.popular ? '#3b82f6' : 'transparent',
+                      color: plan.popular ? 'white' : '#3b82f6',
+                      border: '2px solid #3b82f6',
+                      borderRadius: '8px',
+                      fontSize: '16px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.3s ease'
+                    }}
+                    onMouseOver={(e) => {
+                      if (!plan.popular) {
+                        e.currentTarget.style.backgroundColor = '#3b82f6';
+                        e.currentTarget.style.color = 'white';
+                      }
+                    }}
+                    onMouseOut={(e) => {
+                      if (!plan.popular) {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                        e.currentTarget.style.color = '#3b82f6';
+                      }
+                    }}
+                  >
+                    Get Started
+                  </motion.button>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* About Section */}
+        <section id="about" style={{
+          padding: '120px 40px',
+          backgroundColor: '#1e293b'
+        }}>
+          <div style={{
+            maxWidth: '1200px',
+            margin: '0 auto',
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '80px',
+            alignItems: 'center'
+          }}>
+            <motion.div
+              initial={{ opacity: 0, x: -30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8 }}
+              viewport={{ once: true }}
+            >
+              <h2 style={{
+                fontSize: '48px',
+                fontWeight: '800',
+                margin: '0 0 24px 0',
+                background: 'linear-gradient(135deg, #f1f5f9 0%, #cbd5e1 100%)',
+                backgroundClip: 'text',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent'
+              }}>
+                Built for the Future of Work
+              </h2>
+              <p style={{
+                fontSize: '18px',
+                color: '#94a3b8',
+                lineHeight: '1.7',
+                marginBottom: '32px'
+              }}>
+                NexOffice is being created by a team of remote work experts who understand the challenges 
+                of distributed teams. We're building a platform that doesn't just replicate in-person 
+                meetings, but enhances them with powerful digital-first features.
+              </p>
+              <p style={{
+                fontSize: '18px',
+                color: '#94a3b8',
+                lineHeight: '1.7',
+                marginBottom: '40px'
+              }}>
+                Designed to scale from small startups to large enterprises, 
+                NexOffice will be the virtual office platform that grows with your business.
+              </p>
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                <Link href="/signup" style={{
+                  padding: '16px 32px',
+                  background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                  color: 'white',
+                  textDecoration: 'none',
+                  borderRadius: '8px',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  display: 'inline-block',
+                  transition: 'all 0.3s ease'
+                }}>
+                  Start Your Journey
+                </Link>
+              </motion.div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, x: 30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8 }}
+              viewport={{ once: true }}
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: '20px'
+              }}
+            >
+              {[
+                { metric: '99.9%', label: 'Target Uptime' },
+                { metric: '< 50ms', label: 'Target Latency' },
+                { metric: '256-bit', label: 'Encryption' },
+                { metric: '24/7', label: 'Planned Support' }
+              ].map((item, index) => (
+                <motion.div
+                  key={index}
+                  whileHover={{ scale: 1.05 }}
                   style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '50%',
-                    backgroundColor: '#DB4437',
-                    color: 'white',
-                    border: 'none',
-                    cursor: 'pointer',
-                    fontSize: '16px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
+                    padding: '30px',
+                    backgroundColor: 'rgba(15, 23, 42, 0.5)',
+                    borderRadius: '12px',
+                    border: '1px solid rgba(148, 163, 184, 0.1)',
+                    textAlign: 'center',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.3)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.borderColor = 'rgba(148, 163, 184, 0.1)';
                   }}
                 >
-                  ✕
-                </button>
-              </div>
-
-              {/* Content */}
-              <div style={{
-                flex: 1,
-                padding: '24px',
-                overflowY: 'auto'
-              }}>
-                {sentInvitations.length === 0 ? (
                   <div style={{
-                    textAlign: 'center',
-                    padding: '40px 20px',
-                    color: 'rgba(255,255,255,0.7)'
+                    fontSize: '24px',
+                    fontWeight: '800',
+                    color: '#3b82f6',
+                    marginBottom: '8px'
                   }}>
-                    <div style={{ fontSize: '48px', marginBottom: '16px' }}>📤</div>
-                    <p>No invitations sent yet</p>
+                    {item.metric}
                   </div>
-                ) : (
                   <div style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '16px'
+                    fontSize: '14px',
+                    color: '#64748b',
+                    fontWeight: '500'
                   }}>
-                    {sentInvitations.map((invitation: any) => (
-                      <SentInvitationCard
-                        key={invitation.id}
-                        invitation={invitation}
-                        onCancel={handleCancelInvitation}
-                      />
-                    ))}
+                    {item.label}
                   </div>
-                )}
-              </div>
-            </div>
+                </motion.div>
+              ))}
+            </motion.div>
           </div>
-        )}
+        </section>
 
-        {/* Profile Modal */}
-        {showProfile && (
+        {/* Footer */}
+        <footer style={{
+          padding: '60px 40px 40px',
+          backgroundColor: '#0f172a',
+          borderTop: '1px solid rgba(148, 163, 184, 0.1)'
+        }}>
           <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.8)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            backdropFilter: 'blur(10px)',
-            padding: '20px'
+            maxWidth: '1200px',
+            margin: '0 auto',
+            textAlign: 'center'
           }}>
             <div style={{
-              width: '100%',
-              maxWidth: '500px',
-              maxHeight: '80vh',
-              backgroundColor: '#1F1F1F',
-              borderRadius: '24px',
-              border: '1px solid #333',
-              overflow: 'hidden',
               display: 'flex',
-              flexDirection: 'column'
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '12px',
+              marginBottom: '24px'
             }}>
-              {/* Header */}
-              <div style={{
-                padding: '32px 32px 24px 32px',
-                borderBottom: '1px solid #333',
-                textAlign: 'center'
+              <div style={{ fontSize: '28px' }}>🏢</div>
+              <span style={{
+                fontSize: '24px',
+                fontWeight: '800',
+                background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                backgroundClip: 'text',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent'
               }}>
-                <div style={{
-                  width: '80px',
-                  height: '80px',
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #0052CC 0%, #0065FF 100%)',
-                  margin: '0 auto 16px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '36px',
-                  fontWeight: '700',
-                  color: 'white',
-                  boxShadow: '0 8px 24px rgba(0, 82, 204, 0.3)'
-                }}>
-                  {user.displayName?.charAt(0)?.toUpperCase() || 'U'}
-                </div>
-                <h2 style={{
-                  fontSize: '24px',
-                  fontWeight: '700',
-                  color: 'white',
-                  margin: '0 0 8px 0'
-                }}>
-                  {user.displayName || 'User Profile'}
-                </h2>
-                <p style={{
-                  fontSize: '14px',
-                  color: 'rgba(255,255,255,0.6)',
-                  margin: 0
-                }}>
-                  Professional Account
-                </p>
-              </div>
-
-              {/* Content */}
-              <div style={{
-                flex: 1,
-                padding: '24px 32px',
-                overflowY: 'auto'
-              }}>
-                {/* User Information */}
-                <div style={{
-                  marginBottom: '32px'
-                }}>
-                  <h3 style={{
-                    fontSize: '18px',
-                    fontWeight: '600',
-                    color: 'white',
-                    margin: '0 0 16px 0'
-                  }}>
-                    Account Information
-                  </h3>
-                  
-                  <div style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '12px'
-                  }}>
-                    <div style={{
-                      padding: '16px',
-                      backgroundColor: 'rgba(255,255,255,0.05)',
-                      borderRadius: '12px',
-                      border: '1px solid rgba(255,255,255,0.1)'
-                    }}>
-                      <div style={{
-                        fontSize: '12px',
-                        color: 'rgba(255,255,255,0.6)',
-                        marginBottom: '4px',
-                        fontWeight: '500'
-                      }}>
-                        Email Address
-                      </div>
-                      <div style={{
-                        fontSize: '14px',
-                        color: 'white',
-                        fontWeight: '500'
-                      }}>
-                        {user.email}
-                      </div>
-                    </div>
-
-                    <div style={{
-                      padding: '16px',
-                      backgroundColor: 'rgba(255,255,255,0.05)',
-                      borderRadius: '12px',
-                      border: '1px solid rgba(255,255,255,0.1)'
-                    }}>
-                      <div style={{
-                        fontSize: '12px',
-                        color: 'rgba(255,255,255,0.6)',
-                        marginBottom: '4px',
-                        fontWeight: '500'
-                      }}>
-                        User ID
-                      </div>
-                      <div style={{
-                        fontSize: '14px',
-                        color: 'white',
-                        fontWeight: '500',
-                        fontFamily: 'monospace'
-                      }}>
-                        {user.uid}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Activity Statistics */}
-                <div style={{
-                  marginBottom: '32px'
-                }}>
-                  <h3 style={{
-                    fontSize: '18px',
-                    fontWeight: '600',
-                    color: 'white',
-                    margin: '0 0 16px 0'
-                  }}>
-                    Activity Overview
-                  </h3>
-                  
-                  <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
-                    gap: '12px'
-                  }}>
-                    <div style={{
-                      padding: '16px',
-                      backgroundColor: 'rgba(15, 157, 88, 0.1)',
-                      borderRadius: '12px',
-                      border: '1px solid rgba(15, 157, 88, 0.2)',
-                      textAlign: 'center'
-                    }}>
-                      <div style={{
-                        fontSize: '24px',
-                        fontWeight: '700',
-                        color: '#0F9D58',
-                        marginBottom: '4px'
-                      }}>
-                        {userRooms?.totalRoomsJoined || 0}
-                      </div>
-                      <div style={{
-                        fontSize: '12px',
-                        color: 'rgba(255,255,255,0.7)',
-                        fontWeight: '500'
-                      }}>
-                        Total Rooms
-                      </div>
-                    </div>
-
-                    <div style={{
-                      padding: '16px',
-                      backgroundColor: 'rgba(0, 82, 204, 0.1)',
-                      borderRadius: '12px',
-                      border: '1px solid rgba(0, 82, 204, 0.2)',
-                      textAlign: 'center'
-                    }}>
-                      <div style={{
-                        fontSize: '24px',
-                        fontWeight: '700',
-                        color: '#0052CC',
-                        marginBottom: '4px'
-                      }}>
-                        {ownedOffices.length}
-                      </div>
-                      <div style={{
-                        fontSize: '12px',
-                        color: 'rgba(255,255,255,0.7)',
-                        fontWeight: '500'
-                      }}>
-                        Owned Offices
-                      </div>
-                    </div>
-
-                    <div style={{
-                      padding: '16px',
-                      backgroundColor: 'rgba(123, 104, 238, 0.1)',
-                      borderRadius: '12px',
-                      border: '1px solid rgba(123, 104, 238, 0.2)',
-                      textAlign: 'center'
-                    }}>
-                      <div style={{
-                        fontSize: '24px',
-                        fontWeight: '700',
-                        color: '#7B68EE',
-                        marginBottom: '4px'
-                      }}>
-                        {memberOffices.length}
-                      </div>
-                      <div style={{
-                        fontSize: '12px',
-                        color: 'rgba(255,255,255,0.7)',
-                        fontWeight: '500'
-                      }}>
-                        Member Of
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Employee Management Section (Only for Office Owners) */}
-                {ownedOffices.length > 0 && (
-                  <div style={{
-                    marginBottom: '32px'
-                  }}>
-                    <h3 style={{
-                      fontSize: '18px',
-                      fontWeight: '600',
-                      color: 'white',
-                      margin: '0 0 16px 0',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px'
-                    }}>
-                      <span style={{ fontSize: '20px' }}>👥</span>
-                      Employee Management
-                    </h3>
-                    
-                    <div style={{
-                      backgroundColor: 'rgba(255,255,255,0.05)',
-                      borderRadius: '12px',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      padding: '20px'
-                    }}>
-                      <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                        gap: '16px',
-                        marginBottom: '20px'
-                      }}>
-                        <div style={{
-                          padding: '16px',
-                          backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                          borderRadius: '12px',
-                          border: '1px solid rgba(239, 68, 68, 0.2)',
-                          textAlign: 'center'
-                        }}>
-                          <div style={{
-                            fontSize: '24px',
-                            fontWeight: '700',
-                            color: '#EF4444',
-                            marginBottom: '4px'
-                          }}>
-                            {loadingActivityStats ? '...' : (activityStats?.totalEmployees || 0)}
-                          </div>
-                          <div style={{
-                            fontSize: '12px',
-                            color: 'rgba(255,255,255,0.7)',
-                            fontWeight: '500'
-                          }}>
-                            Total Employees
-                          </div>
-                        </div>
-
-                        <div style={{
-                          padding: '16px',
-                          backgroundColor: 'rgba(34, 197, 94, 0.1)',
-                          borderRadius: '12px',
-                          border: '1px solid rgba(34, 197, 94, 0.2)',
-                          textAlign: 'center'
-                        }}>
-                          <div style={{
-                            fontSize: '24px',
-                            fontWeight: '700',
-                            color: '#22C55E',
-                            marginBottom: '4px'
-                          }}>
-                            {loadingActivityStats ? '...' : (activityStats?.activeNow || 0)}
-                          </div>
-                          <div style={{
-                            fontSize: '12px',
-                            color: 'rgba(255,255,255,0.7)',
-                            fontWeight: '500'
-                          }}>
-                            Active Now
-                          </div>
-                        </div>
-
-                        <div style={{
-                          padding: '16px',
-                          backgroundColor: 'rgba(168, 85, 247, 0.1)',
-                          borderRadius: '12px',
-                          border: '1px solid rgba(168, 85, 247, 0.2)',
-                          textAlign: 'center'
-                        }}>
-                          <div style={{
-                            fontSize: '24px',
-                            fontWeight: '700',
-                            color: '#A855F7',
-                            marginBottom: '4px'
-                          }}>
-                            {loadingActivityStats ? '...' : `${activityStats?.avgWeeklyHours || 0}h`}
-                          </div>
-                          <div style={{
-                            fontSize: '12px',
-                            color: 'rgba(255,255,255,0.7)',
-                            fontWeight: '500'
-                          }}>
-                            Avg Weekly Hours
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Top Performers */}
-                      <div style={{
-                        borderTop: '1px solid rgba(255,255,255,0.1)',
-                        paddingTop: '16px'
-                      }}>
-                        <h4 style={{
-                          fontSize: '14px',
-                          fontWeight: '600',
-                          color: 'rgba(255,255,255,0.9)',
-                          margin: '0 0 12px 0'
-                        }}>
-                          Top Active Employees This Week
-                        </h4>
-                        
-                        <div style={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '8px'
-                        }}>
-                          {loadingActivityStats ? (
-                            <div style={{
-                              textAlign: 'center',
-                              padding: '20px',
-                              color: 'rgba(255,255,255,0.7)'
-                            }}>
-                              <div style={{
-                                width: '24px',
-                                height: '24px',
-                                border: '2px solid rgba(255,255,255,0.2)',
-                                borderTop: '2px solid #0F9D58',
-                                borderRadius: '50%',
-                                animation: 'spin 1s linear infinite',
-                                margin: '0 auto 8px'
-                              }} />
-                              Loading employee data...
-                            </div>
-                          ) : activityStats?.topPerformers && activityStats.topPerformers.length > 0 ? 
-                            activityStats.topPerformers.map((employee, index) => (
-                            <div
-                              key={employee.name}
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                padding: '12px 16px',
-                                backgroundColor: 'rgba(255,255,255,0.05)',
-                                borderRadius: '8px',
-                                border: '1px solid rgba(255,255,255,0.08)'
-                              }}
-                            >
-                              <div style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '12px'
-                              }}>
-                                <div style={{
-                                  width: '32px',
-                                  height: '32px',
-                                  borderRadius: '50%',
-                                  backgroundColor: index === 0 ? '#FFD700' : index === 1 ? '#C0C0C0' : index === 2 ? '#CD7F32' : '#6B7280',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  fontSize: '16px'
-                                }}>
-                                  {employee.avatar}
-                                </div>
-                                <div>
-                                  <div style={{
-                                    fontSize: '14px',
-                                    fontWeight: '600',
-                                    color: 'white'
-                                  }}>
-                                    {employee.name}
-                                  </div>
-                                  <div style={{
-                                    fontSize: '12px',
-                                    color: 'rgba(255,255,255,0.6)'
-                                  }}>
-                                    {employee.department}
-                                  </div>
-                                </div>
-                              </div>
-                              
-                              <div style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '8px'
-                              }}>
-                                <div style={{
-                                  padding: '4px 8px',
-                                  backgroundColor: index === 0 ? 'rgba(34, 197, 94, 0.2)' : 'rgba(168, 85, 247, 0.2)',
-                                  borderRadius: '12px',
-                                  fontSize: '12px',
-                                  fontWeight: '600',
-                                  color: index === 0 ? '#22C55E' : '#A855F7'
-                                }}>
-                                  {employee.weeklyHours}h
-                                </div>
-                                {index === 0 && (
-                                  <span style={{ fontSize: '16px' }}>🏆</span>
-                                )}
-                              </div>
-                            </div>
-                          )) : (
-                            <div style={{
-                              textAlign: 'center',
-                              padding: '20px',
-                              color: 'rgba(255,255,255,0.7)'
-                            }}>
-                              No employee activity data available
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Account Actions */}
-                <div style={{
-                  display: 'flex',
-                  gap: '12px',
-                  justifyContent: 'center'
-                }}>
-                  <button
-                    onClick={() => setShowProfile(false)}
-                    style={{
-                      flex: 1,
-                      padding: '14px 24px',
-                      backgroundColor: 'rgba(255,255,255,0.1)',
-                      color: 'white',
-                      border: '1px solid rgba(255,255,255,0.2)',
-                      borderRadius: '12px',
-                      fontSize: '14px',
-                      fontWeight: '600',
-                      cursor: 'pointer',
-                      transition: 'all 0.3s ease'
-                    }}
-                    onMouseOver={(e) => {
-                      e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)';
-                    }}
-                    onMouseOut={(e) => {
-                      e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)';
-                    }}
-                  >
-                    Close
-                  </button>
-                  <button
-                    onClick={signOut}
-                    style={{
-                      flex: 1,
-                      padding: '14px 24px',
-                      backgroundColor: '#DC2626',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '12px',
-                      fontSize: '14px',
-                      fontWeight: '600',
-                      cursor: 'pointer',
-                      transition: 'all 0.3s ease'
-                    }}
-                    onMouseOver={(e) => {
-                      e.currentTarget.style.backgroundColor = '#B91C1C';
-                    }}
-                    onMouseOut={(e) => {
-                      e.currentTarget.style.backgroundColor = '#DC2626';
-                    }}
-                  >
-                    Sign Out
-                  </button>
-                </div>
-              </div>
+                NexOffice
+              </span>
             </div>
+            
+            <p style={{
+              fontSize: '16px',
+              color: '#64748b',
+              marginBottom: '32px'
+            }}>
+              Next Generation Virtual Office Platform
+            </p>
+            
+            <div style={{
+              display: 'flex',
+              justifyContent: 'center',
+              gap: '40px',
+              marginBottom: '40px'
+            }}>
+              {['Privacy Policy', 'Terms of Service', 'Contact', 'Support'].map((link, index) => (
+                <a key={index} href="#" style={{
+                  color: '#94a3b8',
+                  textDecoration: 'none',
+                  fontSize: '14px',
+                  transition: 'color 0.3s ease'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.color = '#f1f5f9'}
+                onMouseOut={(e) => e.currentTarget.style.color = '#94a3b8'}
+                >
+                  {link}
+                </a>
+              ))}
+            </div>
+            
+            <p style={{
+              fontSize: '14px',
+              color: '#475569',
+              margin: 0
+            }}>
+              © 2024 NexOffice. All rights reserved.
+            </p>
           </div>
-        )}
-
-        <style jsx>{`
-          @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-          }
-          @keyframes pulse {
-            0%, 100% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.1); opacity: 0.8; }
-          }
-        `}</style>
+        </footer>
       </div>
+
+      {/* Demo Modal */}
+      <DemoModal isOpen={showDemo} onClose={() => setShowDemo(false)} />
+
+      <style jsx>{`
+        @media (max-width: 768px) {
+          nav {
+            padding: 16px 20px !important;
+          }
+          
+          nav > div:first-child span {
+            font-size: 20px !important;
+          }
+          
+          nav > div:nth-child(2) {
+            display: none !important;
+          }
+          
+          nav > div:last-child {
+            gap: 8px !important;
+          }
+          
+          nav > div:last-child a {
+            padding: 8px 16px !important;
+            font-size: 14px !important;
+          }
+          
+          h1 {
+            font-size: 48px !important;
+          }
+          
+          .hero-buttons {
+            flex-direction: column !important;
+            gap: 16px !important;
+          }
+          
+          .hero-buttons a {
+            width: 100% !important;
+            justify-content: center !important;
+          }
+          
+          .stats {
+            flex-direction: column !important;
+            gap: 30px !important;
+          }
+          
+          .about-grid {
+            grid-template-columns: 1fr !important;
+            gap: 40px !important;
+          }
+          
+          .metrics-grid {
+            grid-template-columns: 1fr 1fr !important;
+          }
+        }
+      `}</style>
     </>
   );
-} 
+}

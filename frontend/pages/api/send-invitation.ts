@@ -35,14 +35,14 @@ export default async function handler(
     }
 
     // Email template
-    const emailSubject = `${inviter_name} invited you to join their virtual office`;
+    const emailSubject = `${inviter_name} invited you to join their NexOffice workspace`;
     const emailBody = `
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Join Virtual Office</title>
+    <title>Join NexOffice Workspace</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f4f4f4; }
         .container { max-width: 600px; margin: 0 auto; background: white; padding: 0; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
@@ -75,7 +75,7 @@ export default async function handler(
             
             <div style="text-align: center; margin: 30px 0;">
                 <a href="${invitation_link}" class="button" style="color: white;">
-                    🚀 Join Virtual Office
+                    🚀 Join NexOffice
                 </a>
             </div>
             
@@ -96,8 +96,8 @@ export default async function handler(
         </div>
         
         <div class="footer">
-            <p><strong>Enterprise Virtual Office Platform</strong></p>
-            <p>Premium collaboration workspace for modern teams</p>
+            <p><strong>NexOffice</strong></p>
+            <p>Next Generation Virtual Office Platform</p>
             <p style="font-size: 12px; margin-top: 15px;">
                 This invitation was sent by ${inviter_name} (${inviter_email}).
                 If you didn't expect this invitation, you can safely ignore this email.
