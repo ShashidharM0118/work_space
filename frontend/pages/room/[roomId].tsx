@@ -84,40 +84,32 @@ export default function Room() {
     console.log('🔍 Building WebSocket URL with roomId:', roomId);
     console.log('🔍 Current window location:', window.location.href);
     
-    // For local development
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-      const url = `ws://localhost:8000/ws/${roomId}`;
-      console.log('🔗 Local WebSocket URL:', url);
-      return url;
-    }
-    
-    // For ngrok setup - you need TWO tunnels:
-    // 1. Frontend tunnel (this page): https://abc123.ngrok-free.app
-    // 2. Backend tunnel (WebSocket): https://def456.ngrok-free.app
-    
-    // IMPORTANT: Update this URL to your backend ngrok tunnel!
-    // You can set this as an environment variable or hardcode it temporarily
+    // Use environment variable for backend WebSocket URL
     const BACKEND_WEBSOCKET_URL = process.env.NEXT_PUBLIC_BACKEND_WS_URL;
     
-    if (BACKEND_WEBSOCKET_URL) {
-      const url = `${BACKEND_WEBSOCKET_URL}/ws/${roomId}`;
-      console.log('🔗 Custom Backend WebSocket URL:', url);
+    if (!BACKEND_WEBSOCKET_URL) {
+      console.error('❌ NEXT_PUBLIC_BACKEND_WS_URL environment variable is not set!');
+      console.error('❌ Please set NEXT_PUBLIC_BACKEND_WS_URL in your environment');
+      
+      // Fallback for local development
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        const fallbackUrl = 'ws://localhost:8000';
+        const url = `${fallbackUrl}/ws/${roomId}`;
+        console.log('🔗 Local fallback WebSocket URL:', url);
+        return url;
+      }
+      
+      // Fallback for production
+      const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+      const fallbackUrl = `${protocol}://${window.location.hostname}:8000`;
+      const url = `${fallbackUrl}/ws/${roomId}`;
+      console.log('🔗 Production fallback WebSocket URL:', url);
       return url;
     }
     
-    // Fallback: Try to use the current host (works if backend is on same ngrok tunnel)
-    const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    
-    // For ngrok, try the frontend tunnel with WebSocket protocol
-    if (window.location.hostname.includes('ngrok')) {
-      const url = `${protocol}://${window.location.host}/ws/${roomId}`;
-      console.log('🔗 Ngrok Fallback WebSocket URL:', url);
-      return url;
-    }
-    
-    // For other deployments
-    const url = `${protocol}://${window.location.hostname}:8000/ws/${roomId}`;
-    console.log('🔗 Production WebSocket URL:', url);
+    const url = `${BACKEND_WEBSOCKET_URL}/ws/${roomId}`;
+    console.log('🔗 Environment WebSocket URL:', url);
+    console.log('🔗 Environment variable value:', BACKEND_WEBSOCKET_URL);
     return url;
   };
 
@@ -375,11 +367,11 @@ export default function Room() {
           // Check if peer already exists
           const existingPeer = peersRef.current.find(p => p.id === msg.user.id);
           if (!existingPeer) {
-            const initiator = myId.current > msg.user.id;
-            console.log('🔄 Creating peer connection - I am initiator:', initiator);
-            const peer = createPeer(msg.user.id, stream, initiator);
-            peersRef.current.push({ id: msg.user.id, peer });
-            setPeers([...peersRef.current]);
+          const initiator = myId.current > msg.user.id;
+          console.log('🔄 Creating peer connection - I am initiator:', initiator);
+          const peer = createPeer(msg.user.id, stream, initiator);
+          peersRef.current.push({ id: msg.user.id, peer });
+          setPeers([...peersRef.current]);
           } else {
             console.log('⚠️ Peer already exists for user:', msg.user.id);
           }
@@ -414,7 +406,7 @@ export default function Room() {
         
         console.log('📨 Signaling peer:', msg.sender, 'Signal type:', msg.signal?.type);
         try {
-          existing.peer.signal(msg.signal);
+        existing.peer.signal(msg.signal);
         } catch (error) {
           console.error('❌ Signal error with peer', msg.sender, ':', error);
           // Remove and recreate peer if signaling fails
@@ -547,7 +539,7 @@ export default function Room() {
       setConnectionStatus('Browser not supported');
       return;
     }
-
+   
     // Request both video and audio with specific constraints
     navigator.mediaDevices
       .getUserMedia({ 
@@ -583,25 +575,33 @@ export default function Room() {
         const getWsUrl = () => {
           if (typeof window === 'undefined') return '';
           
-          // For local development
-          if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-            return `ws://localhost:8000/ws/${wsRoomId}`;
-          }
-          
-          // For ngrok or production
-          const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+          // Use environment variable for backend URL
           const BACKEND_WEBSOCKET_URL = process.env.NEXT_PUBLIC_BACKEND_WS_URL;
           
-          if (BACKEND_WEBSOCKET_URL) {
-            return `${BACKEND_WEBSOCKET_URL}/ws/${wsRoomId}`;
+          if (!BACKEND_WEBSOCKET_URL) {
+            console.error('❌ NEXT_PUBLIC_BACKEND_WS_URL environment variable is not set!');
+            console.error('❌ Please set NEXT_PUBLIC_BACKEND_WS_URL in your environment');
+            
+            // Fallback for local development
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+              const fallbackUrl = 'ws://localhost:8000';
+              const url = `${fallbackUrl}/ws/${wsRoomId}`;
+              console.log('🔗 Local fallback WebSocket URL:', url);
+              return url;
+            }
+            
+            // Fallback for production
+            const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+            const fallbackUrl = `${protocol}://${window.location.hostname}:8000`;
+            const url = `${fallbackUrl}/ws/${wsRoomId}`;
+            console.log('🔗 Production fallback WebSocket URL:', url);
+            return url;
           }
           
-          // Fallback
-          if (window.location.hostname.includes('ngrok')) {
-            return `${protocol}://${window.location.host}/ws/${wsRoomId}`;
-          }
-          
-          return `${protocol}://${window.location.hostname}:8000/ws/${wsRoomId}`;
+          const url = `${BACKEND_WEBSOCKET_URL}/ws/${wsRoomId}`;
+          console.log('🔗 Environment WebSocket URL:', url);
+          console.log('🔗 Environment variable value:', BACKEND_WEBSOCKET_URL);
+          return url;
         };
         
         const signalingUrl = getWsUrl();
@@ -666,7 +666,7 @@ export default function Room() {
             if (event.code === 1006) {
               setMediaError('Connection lost unexpectedly. This may be due to media access issues. Please check your camera/microphone permissions and refresh the page.');
             } else {
-              setMediaError('Connection lost. Please refresh the page to reconnect.');
+            setMediaError('Connection lost. Please refresh the page to reconnect.');
             }
           }
         };
@@ -720,7 +720,7 @@ export default function Room() {
         console.log('🧹 Destroying peer:', id);
         try {
           if (!peer.destroyed) {
-            peer.destroy();
+        peer.destroy();
           }
         } catch (error) {
           console.warn('Error destroying peer:', error);
@@ -905,8 +905,8 @@ export default function Room() {
           }} 
         />
         {!hasStream && (
-          <div style={{
-            position: 'absolute',
+        <div style={{
+          position: 'absolute',
             top: '50%',
             left: '50%',
             transform: 'translate(-50%, -50%)',
@@ -1115,25 +1115,25 @@ export default function Room() {
           gap: isMobile ? '6px' : '8px'
         }}>
           {!isMobile && (
-            <div style={{
-              padding: '6px 12px',
+          <div style={{ 
+            padding: '6px 12px', 
               backgroundColor: isConnected ? '#0F9D58' : '#DB4437',
-              color: 'white',
+            color: 'white',
               borderRadius: '12px',
-              fontSize: '12px',
-              fontWeight: '500',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px'
-            }}>
-              <div style={{
+            fontSize: '12px',
+            fontWeight: '500',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px'
+          }}>
+            <div style={{
                 width: '6px',
                 height: '6px',
-                borderRadius: '50%',
-                backgroundColor: 'white'
-              }} />
-              {connectionStatus}
-            </div>
+              borderRadius: '50%',
+              backgroundColor: 'white'
+            }} />
+            {connectionStatus}
+          </div>
           )}
 
           {isOwner && (
@@ -1397,7 +1397,7 @@ export default function Room() {
 
         {/* Chat Panel */}
         {showChat && (
-          <div style={{
+        <div style={{
             position: isMobile ? 'fixed' : 'relative',
             top: isMobile ? '0' : 'auto',
             left: isMobile ? '0' : 'auto',
@@ -1405,16 +1405,16 @@ export default function Room() {
             bottom: isMobile ? '0' : 'auto',
             width: isMobile ? '100%' : '300px',
             height: isMobile ? '100vh' : 'auto',
-            backgroundColor: '#202124',
+          backgroundColor: '#202124',
             borderLeft: isMobile ? 'none' : '1px solid #5f6368',
-            display: 'flex',
+          display: 'flex',
             flexDirection: 'column',
             zIndex: isMobile ? 1000 : 'auto'
-          }}>
-            <div style={{
+        }}>
+          <div style={{
               padding: isMobile ? '16px 16px 12px 16px' : '16px',
-              borderBottom: '1px solid #5f6368',
-              fontWeight: '600',
+            borderBottom: '1px solid #5f6368',
+            fontWeight: '600',
               fontSize: '16px',
               display: 'flex',
               justifyContent: 'space-between',
@@ -1434,79 +1434,79 @@ export default function Room() {
               >
                 ✕
               </button>
-            </div>
-            
-            <div style={{
-              flex: 1,
-              padding: '16px',
-              overflowY: 'auto',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '8px'
-            }}>
-              {messages.map((msg, idx) => (
-                <div key={idx} style={{
-                  padding: '8px 12px',
+          </div>
+          
+          <div style={{
+            flex: 1,
+            padding: '16px',
+            overflowY: 'auto',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px'
+          }}>
+            {messages.map((msg, idx) => (
+              <div key={idx} style={{
+                padding: '8px 12px',
                   backgroundColor: msg.sender === myId.current ? '#0F9D58' : '#3c4043',
-                  borderRadius: '12px',
-                  fontSize: '14px',
-                  wordBreak: 'break-word'
-                }}>
-                  <div style={{ fontWeight: '600', marginBottom: '2px' }}>
-                    {msg.sender === myId.current ? 'You' : (participants.find(p => p.id === msg.sender)?.name || 'Unknown')}
-                  </div>
-                  <div>{msg.text}</div>
-                  {msg.timestamp && (
-                    <div style={{ fontSize: '11px', opacity: 0.7, marginTop: '2px' }}>
-                      {msg.timestamp}
-                    </div>
-                  )}
+                borderRadius: '12px',
+                fontSize: '14px',
+                wordBreak: 'break-word'
+              }}>
+                <div style={{ fontWeight: '600', marginBottom: '2px' }}>
+                  {msg.sender === myId.current ? 'You' : (participants.find(p => p.id === msg.sender)?.name || 'Unknown')}
                 </div>
-              ))}
-            </div>
-            
-            <div style={{
-              padding: '16px',
-              borderTop: '1px solid #5f6368',
-              display: 'flex',
+                <div>{msg.text}</div>
+                {msg.timestamp && (
+                  <div style={{ fontSize: '11px', opacity: 0.7, marginTop: '2px' }}>
+                    {msg.timestamp}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          
+          <div style={{
+            padding: '16px',
+            borderTop: '1px solid #5f6368',
+            display: 'flex',
               gap: '8px',
               paddingBottom: isMobile ? '24px' : '16px'
-            }}>
-              <input
-                type="text"
-                value={newMsg}
-                onChange={(e) => setNewMsg(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                placeholder="Type a message..."
-                style={{
-                  flex: 1,
+          }}>
+            <input
+              type="text"
+              value={newMsg}
+              onChange={(e) => setNewMsg(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+              placeholder="Type a message..."
+              style={{
+                flex: 1,
                   padding: '12px',
-                  backgroundColor: '#3c4043',
-                  border: '1px solid #5f6368',
-                  borderRadius: '8px',
-                  color: 'white',
-                  fontSize: '14px',
-                  outline: 'none'
-                }}
-              />
-              <button
-                onClick={sendMessage}
-                disabled={!newMsg.trim()}
-                style={{
+                backgroundColor: '#3c4043',
+                border: '1px solid #5f6368',
+                borderRadius: '8px',
+                color: 'white',
+                fontSize: '14px',
+                outline: 'none'
+              }}
+            />
+            <button
+              onClick={sendMessage}
+              disabled={!newMsg.trim()}
+              style={{
                   padding: '12px 16px',
                   backgroundColor: newMsg.trim() ? '#0F9D58' : '#5f6368',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: newMsg.trim() ? 'pointer' : 'not-allowed',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: newMsg.trim() ? 'pointer' : 'not-allowed',
                   fontSize: '14px',
                   fontWeight: '500'
-                }}
-              >
-                Send
-              </button>
-            </div>
+              }}
+            >
+              Send
+            </button>
           </div>
+        </div>
         )}
       </div>
 
@@ -1523,8 +1523,8 @@ export default function Room() {
         padding: isMobile ? '12px 20px 28px 20px' : '12px 40px 20px 40px',
         zIndex: 100
       }}>
-        <div style={{
-          display: 'flex',
+        <div style={{ 
+          display: 'flex', 
           justifyContent: 'center',
           alignItems: 'center',
           gap: isMobile ? '12px' : '12px',
@@ -1533,29 +1533,29 @@ export default function Room() {
         }}>
           {/* Left Controls Group */}
           <div style={{ display: 'flex', gap: isMobile ? '8px' : '10px' }}>
-            {/* Microphone */}
-            <button 
-              onClick={() => {
-                if (streamRef.current) {
-                  const audioTrack = streamRef.current.getAudioTracks()[0];
-                  if (audioTrack) {
-                    audioTrack.enabled = !audioTrack.enabled;
-                    setPeers([...peersRef.current || []]);
-                  }
+          {/* Microphone */}
+          <button 
+            onClick={() => {
+              if (streamRef.current) {
+                const audioTrack = streamRef.current.getAudioTracks()[0];
+                if (audioTrack) {
+                  audioTrack.enabled = !audioTrack.enabled;
+                  setPeers([...peersRef.current || []]);
                 }
-              }}
-              disabled={!streamRef.current}
-              style={{
+              }
+            }}
+            disabled={!streamRef.current}
+            style={{
                 width: isMobile ? '52px' : '48px',
                 height: isMobile ? '52px' : '48px',
-                borderRadius: '50%',
+              borderRadius: '50%',
                 backgroundColor: streamRef.current?.getAudioTracks()[0]?.enabled !== false ? 'rgba(255, 255, 255, 0.1)' : '#EA4335',
                 border: `2px solid ${streamRef.current?.getAudioTracks()[0]?.enabled !== false ? 'rgba(255, 255, 255, 0.2)' : '#EA4335'}`,
-                color: 'white',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
+              color: 'white',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
                 transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                 boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
                 outline: 'none',
@@ -1578,27 +1578,27 @@ export default function Room() {
                   <path d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17c0-.06.02-.11.02-.17V5c0-1.66-1.34-3-3-3S9 3.34 9 5v.18l5.98 5.99zM4.27 3L3 4.27l6.01 6.01V11c0 1.66 1.33 3 2.99 3 .22 0 .44-.03.65-.08l1.66 1.66c-.71.33-1.5.52-2.31.52-2.76 0-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c.91-.13 1.77-.45 2.54-.9L19.73 21 21 19.73 4.27 3z"/>
                 )}
               </svg>
-            </button>
+          </button>
 
-            {/* Camera */}
-            <button 
-              onClick={() => {
-                if (streamRef.current) {
-                  const videoTrack = streamRef.current.getVideoTracks()[0];
-                  if (videoTrack) {
-                    videoTrack.enabled = !videoTrack.enabled;
-                    setPeers([...peersRef.current || []]);
-                  }
+          {/* Camera */}
+          <button 
+            onClick={() => {
+              if (streamRef.current) {
+                const videoTrack = streamRef.current.getVideoTracks()[0];
+                if (videoTrack) {
+                  videoTrack.enabled = !videoTrack.enabled;
+                  setPeers([...peersRef.current || []]);
                 }
-              }}
-              disabled={!streamRef.current}
-              style={{
+              }
+            }}
+            disabled={!streamRef.current}
+            style={{
                 width: isMobile ? '52px' : '48px',
                 height: isMobile ? '52px' : '48px',
-                borderRadius: '50%',
+              borderRadius: '50%',
                 backgroundColor: streamRef.current?.getVideoTracks()[0]?.enabled !== false ? 'rgba(255, 255, 255, 0.1)' : '#EA4335',
                 border: `2px solid ${streamRef.current?.getVideoTracks()[0]?.enabled !== false ? 'rgba(255, 255, 255, 0.2)' : '#EA4335'}`,
-                color: 'white',
+              color: 'white',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
@@ -1664,22 +1664,22 @@ export default function Room() {
 
           {/* Right Controls Group */}
           <div style={{ display: 'flex', gap: isMobile ? '8px' : '10px' }}>
-            {/* Screen Share */}
+          {/* Screen Share */}
             {!isMobile && (
-              <button 
-                onClick={toggleScreenShare}
-                disabled={!streamRef.current}
-                style={{
-                  width: '48px',
-                  height: '48px',
-                  borderRadius: '50%',
+          <button 
+            onClick={toggleScreenShare}
+            disabled={!streamRef.current}
+            style={{
+              width: '48px',
+              height: '48px',
+              borderRadius: '50%',
                   backgroundColor: isScreenSharing ? '#1976D2' : 'rgba(255, 255, 255, 0.1)',
                   border: `2px solid ${isScreenSharing ? '#1976D2' : 'rgba(255, 255, 255, 0.2)'}`,
-                  color: 'white',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
+              color: 'white',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
                   transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                   boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
                   outline: 'none',
@@ -1698,7 +1698,7 @@ export default function Room() {
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M20 18c1.1 0 1.99-.9 1.99-2L22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4zM4 6h16v10H4V6z"/>
                 </svg>
-              </button>
+          </button>
             )}
 
             {/* Chat */}
@@ -1755,19 +1755,19 @@ export default function Room() {
             </button>
 
             {/* More Options */}
-            <button 
-              onClick={() => setShowWhiteboard(!showWhiteboard)}
-              style={{
+          <button 
+            onClick={() => setShowWhiteboard(!showWhiteboard)}
+            style={{
                 width: isMobile ? '52px' : '48px',
                 height: isMobile ? '52px' : '48px',
-                borderRadius: '50%',
+              borderRadius: '50%',
                 backgroundColor: showWhiteboard ? '#8E24AA' : 'rgba(255, 255, 255, 0.1)',
                 border: `2px solid ${showWhiteboard ? '#8E24AA' : 'rgba(255, 255, 255, 0.2)'}`,
-                color: 'white',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
+              color: 'white',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
                 transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                 boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
                 outline: 'none',
@@ -1786,9 +1786,9 @@ export default function Room() {
               <svg width={isMobile ? "24" : "18"} height={isMobile ? "24" : "18"} viewBox="0 0 24 24" fill="currentColor">
                 <path d="M22 5v2h-3v3h-2V7h-3V5h3V2h2v3h3zM6 7h9v2H6V7zm0 4h9v2H6v-2zm0 4h6v2H6v-2zm10-1.5V14h3v-2h-3v-.5zM4 2H2v18l4-4h14c1.1 0 2-.9 2-2V5h-2v9H6.17L4 16.17V2z"/>
               </svg>
-            </button>
-          </div>
+          </button>
         </div>
+      </div>
 
         {/* Connection Status */}
         <div style={{
@@ -1854,12 +1854,16 @@ const OfficeDashboard = ({ officeId, onClose, currentRoomId, isMobile }: {
         const baseUrl = process.env.NEXT_PUBLIC_BACKEND_WS_URL || 'http://localhost:8000';
         const wsUrl = baseUrl.replace('wss:', 'https:').replace('ws:', 'http:');
         
-        const response = await fetch(`${wsUrl}/offices/${officeId}/participants`);
+        const apiUrl = `${wsUrl}/offices/${officeId}/participants`;
+        console.log('📊 Fetching office data from:', apiUrl);
+        console.log('📊 Environment variable value:', process.env.NEXT_PUBLIC_BACKEND_WS_URL);
+        
+        const response = await fetch(apiUrl);
         const data = await response.json();
         setOfficeData(data);
         console.log('📊 Dashboard data received:', data);
       } catch (error) {
-        console.error('Failed to fetch office data:', error);
+        console.error('❌ Failed to fetch office data:', error);
       } finally {
         setLoading(false);
       }
@@ -2234,13 +2238,20 @@ const ProfilePage = ({ user, userName, sessionStartTime, officeId, isOwner, onCl
           const baseUrl = process.env.NEXT_PUBLIC_BACKEND_WS_URL || 'http://localhost:8000';
           const wsUrl = baseUrl.replace('wss:', 'https:').replace('ws:', 'http:');
           
-          const response = await fetch(`${wsUrl}/offices/${officeId}/employee-stats`);
+          const apiUrl = `${wsUrl}/offices/${officeId}/employee-stats`;
+          console.log('👥 Fetching employee stats from:', apiUrl);
+          console.log('👥 Environment variable value:', process.env.NEXT_PUBLIC_BACKEND_WS_URL);
+          
+          const response = await fetch(apiUrl);
           if (response.ok) {
             const data = await response.json();
             setEmployeeStats(data.employees || []);
+            console.log('👥 Employee stats received:', data);
+          } else {
+            console.error('❌ Failed to fetch employee stats:', response.status, response.statusText);
           }
         } catch (error) {
-          console.error('Failed to fetch employee stats:', error);
+          console.error('❌ Failed to fetch employee stats:', error);
         } finally {
           setLoading(false);
         }

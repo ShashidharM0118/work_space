@@ -3,10 +3,11 @@ const nextConfig = {
   async rewrites() {
     // Only proxy to localhost in development
     if (process.env.NODE_ENV === 'development') {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_WS_URL || 'http://localhost:8000';
       return [
         {
           source: '/ws/:path*',
-          destination: 'http://localhost:8000/ws/:path*',
+          destination: `${backendUrl}/ws/:path*`,
         },
       ];
     }
