@@ -5,9 +5,6 @@
   "installCommand": "npm install",
   "devCommand": "npm run dev",
   "regions": ["iad1"],
-  "env": {
-    "NEXT_PUBLIC_BACKEND_WS_URL": "@backend_ws_url"
-  },
   "functions": {
     "app/api/**/*.ts": {
       "maxDuration": 30
