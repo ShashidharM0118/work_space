@@ -141,6 +141,14 @@ export const createOrUpdateUserProfile = async (user: User) => {
   }
 };
 
+// Add this interface near the top, after other interfaces
+interface UserProfileData {
+  userId: string;
+  displayName?: string;
+  email?: string;
+  photoURL?: string;
+}
+
 // Room Membership Management
 export interface RoomMembership {
   roomId: string;
@@ -459,7 +467,7 @@ export const getOfficeActivityStats = async (officeId: string): Promise<Activity
       userIds.map(async (userId) => {
         try {
           const userDoc = await getDoc(doc(db, 'users', userId));
-          return userDoc.exists() ? { userId, ...userDoc.data() } : null;
+          return userDoc.exists() ? { userId, ...(userDoc.data() as Partial<UserProfileData>) } : null;
         } catch {
           return null;
         }
