@@ -17,8 +17,8 @@ export default function VirtualOfficeBackground({ className }: VirtualOfficeBack
         // Dynamic import to avoid SSR issues
         const initThreeJS = async () => {
             try {
-                // Use require instead of dynamic import for better Next.js compatibility
-                const THREE = require('three');
+                // Use dynamic import for better Next.js compatibility
+                const THREE = await import('three');
 
                 if (!mountRef.current) return;
 
@@ -74,7 +74,7 @@ export default function VirtualOfficeBackground({ className }: VirtualOfficeBack
                 const deskGeometry = new THREE.BoxGeometry(2, 0.1, 1);
                 const deskMaterial = new THREE.MeshLambertMaterial({ color: 0x8b5cf6 });
 
-                const desks = [];
+                const desks: any[] = [];
                 for (let i = 0; i < 6; i++) {
                     const desk = new THREE.Mesh(deskGeometry, deskMaterial);
                     const angle = (i / 6) * Math.PI * 2;
