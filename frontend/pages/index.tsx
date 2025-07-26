@@ -304,7 +304,6 @@ export default function LandingPage() {
               transition={{ duration: 0.8, delay: 0.6 }}
               style={{
                 fontSize: '24px',
-                margin: '0 0 48px 0',
                 lineHeight: '1.5',
                 color: '#94a3b8',
                 maxWidth: '600px',
