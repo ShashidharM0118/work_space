@@ -182,7 +182,7 @@ export default function Room() {
 
   /* -------------------------------------------------- */
   // Simple Peer Helpers
-  const createPeer = (targetId: string, stream: MediaStream, initiator: boolean): SimplePeer.Instance => {
+  const createPeer = (targetId: string, stream: MediaStream | null, initiator: boolean): SimplePeer.Instance => {
     console.log(`🔗 Creating peer connection to ${targetId}, initiator: ${initiator}`);
     console.log('📺 Local stream for peer:', stream ? 'Available' : 'Missing');
     console.log('📺 Stream tracks:', stream ? stream.getTracks().map(t => `${t.kind}: ${t.enabled}`) : 'No tracks');
@@ -330,7 +330,7 @@ export default function Room() {
 
   /* -------------------------------------------------- */
   // WebSocket message handling
-  const handleSocketMsg = (msg: any, stream: MediaStream) => {
+  const handleSocketMsg = (msg: any) => {
     switch (msg.type) {
       case 'participants_list':
         console.log('👥 Received participants list:', msg.participants);
@@ -344,7 +344,7 @@ export default function Room() {
               if (!existingPeer) {
                 console.log('🔄 Creating peer for existing participant:', participant.name, participant.id);
                 const initiator = myId.current > participant.id;
-                const peer = createPeer(participant.id, stream, initiator);
+                const peer = createPeer(participant.id, streamRef.current, initiator);
                 peersRef.current.push({ id: participant.id, peer });
                 setPeers([...peersRef.current]);
               }
@@ -369,7 +369,7 @@ export default function Room() {
           if (!existingPeer) {
           const initiator = myId.current > msg.user.id;
           console.log('🔄 Creating peer connection - I am initiator:', initiator);
-          const peer = createPeer(msg.user.id, stream, initiator);
+          const peer = createPeer(msg.user.id, streamRef.current, initiator);
           peersRef.current.push({ id: msg.user.id, peer });
           setPeers([...peersRef.current]);
           } else {
@@ -398,7 +398,7 @@ export default function Room() {
         let existing = peersRef.current.find((p) => p.id === msg.sender);
         if (!existing) {
           console.log('🆕 Creating new peer for incoming signal from:', msg.sender);
-          const newPeer = createPeer(msg.sender, stream, false);
+          const newPeer = createPeer(msg.sender, streamRef.current, false);
           existing = { id: msg.sender, peer: newPeer };
           peersRef.current.push(existing);
           setPeers([...peersRef.current]);
@@ -416,7 +416,7 @@ export default function Room() {
             peersRef.current.splice(peerIndex, 1);
             
             // Create new peer
-            const newPeer = createPeer(msg.sender, stream, false);
+            const newPeer = createPeer(msg.sender, streamRef.current, false);
             peersRef.current.push({ id: msg.sender, peer: newPeer });
             setPeers([...peersRef.current]);
             
@@ -531,171 +531,170 @@ export default function Room() {
       }
     }
 
-    setConnectionStatus('Getting camera access...');
-   
-    // Check if media devices are available
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      setMediaError('Media devices not supported in this browser.');
-      setConnectionStatus('Browser not supported');
-      return;
-    }
-   
-    // Request both video and audio with specific constraints
-    navigator.mediaDevices
-      .getUserMedia({ 
-        video: { 
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          frameRate: { ideal: 30 }
-        }, 
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true
-        }
-      })
-      .then((stream) => {
-        streamRef.current = stream;
-        setMediaError('');
-       
-        console.log('🎥 Got local stream:', stream.getTracks().map(t => `${t.kind}: ${t.label}`));
-       
-        if (myVideo.current) {
-          myVideo.current.srcObject = stream;
-          myVideo.current.muted = true;
-        }
+    setConnectionStatus('Connecting to server...');
 
-        setConnectionStatus('Connecting to room...');
-        
-        // Use the corrected room ID for WebSocket connection
-        const wsRoomId = actualRoomId;
-        console.log('🔗 Using room ID for WebSocket:', wsRoomId);
-        
-        // Build WebSocket URL with correct room ID
-        const getWsUrl = () => {
-          if (typeof window === 'undefined') return '';
-          
-          // Use environment variable for backend URL
-          const BACKEND_WEBSOCKET_URL = process.env.NEXT_PUBLIC_BACKEND_WS_URL;
-          
-          if (!BACKEND_WEBSOCKET_URL) {
-            console.error('❌ NEXT_PUBLIC_BACKEND_WS_URL environment variable is not set!');
-            console.error('❌ Please set NEXT_PUBLIC_BACKEND_WS_URL in your environment');
-            
-            // Fallback for local development
-            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-              const fallbackUrl = 'ws://localhost:8000';
-              const url = `${fallbackUrl}/ws/${wsRoomId}`;
-              console.log('🔗 Local fallback WebSocket URL:', url);
-              return url;
-            }
-            
-            // Fallback for production
-            const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-            const fallbackUrl = `${protocol}://${window.location.hostname}:8000`;
-            const url = `${fallbackUrl}/ws/${wsRoomId}`;
-            console.log('🔗 Production fallback WebSocket URL:', url);
-            return url;
-          }
-          
-          const url = `${BACKEND_WEBSOCKET_URL}/ws/${wsRoomId}`;
-          console.log('🔗 Environment WebSocket URL:', url);
-          console.log('🔗 Environment variable value:', BACKEND_WEBSOCKET_URL);
+    const wsRoomId = actualRoomId;
+    // Build WebSocket URL with correct room ID
+    const getWsUrl = () => {
+      if (typeof window === 'undefined') return '';
+
+      const BACKEND_WEBSOCKET_URL = process.env.NEXT_PUBLIC_BACKEND_WS_URL;
+
+      if (!BACKEND_WEBSOCKET_URL) {
+        console.error('❌ NEXT_PUBLIC_BACKEND_WS_URL environment variable is not set!');
+        console.error('❌ Please set NEXT_PUBLIC_BACKEND_WS_URL in your environment');
+
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+          const fallbackUrl = 'ws://localhost:8000';
+          const url = `${fallbackUrl}/ws/${wsRoomId}`;
+          console.log('🔗 Local fallback WebSocket URL:', url);
           return url;
-        };
-        
-        const signalingUrl = getWsUrl();
-        console.log('🔗 Attempting WebSocket connection to:', signalingUrl);
-        const ws = new WebSocket(signalingUrl);
-        socketRef.current = ws;
-
-        ws.onopen = async () => {
-          console.log('✅ WebSocket connected successfully');
-          setIsConnected(true);
-          setConnectionStatus('Connected');
-          
-          // Start activity tracking
-          try {
-            if (user?.uid && actualRoomId && officeId) {
-              const sessionId = await startActivityTracking(
-                user.uid,
-                officeId,
-                actualRoomId,
-                userName
-              );
-              setActivitySessionId(sessionId);
-              console.log('✅ Activity tracking started:', sessionId);
-            }
-          } catch (error) {
-            console.error('❌ Failed to start activity tracking:', error);
-          }
-          
-          // Send join message with authenticated user info
-          const userInfo = {
-            type: 'join', 
-            id: myId.current,
-            name: userName,
-            email: user?.email || '',
-            avatar: user?.photoURL || '',
-            firebaseUid: user?.uid || '',
-            displayName: user?.displayName || userName,
-            office_id: officeId || 'default',
-            role: isOwner ? 'owner' : 'member'
-          };
-          
-          ws.send(JSON.stringify(userInfo));
-          console.log('📤 Sent join message with authenticated user info:', {
-            id: userInfo.id,
-            name: userInfo.name,
-            firebaseUid: userInfo.firebaseUid
-          });
-        };
-
-        ws.onerror = (error) => {
-          console.error('❌ WebSocket error:', error);
-          setConnectionStatus('Connection failed');
-          setMediaError('Failed to connect to room server. Please check your internet connection and try refreshing the page.');
-        };
-
-        ws.onclose = (event) => {
-          console.warn('🔌 WebSocket closed:', event.code, event.reason);
-          setIsConnected(false);
-          setConnectionStatus('Disconnected');
-          
-          if (event.code !== 1000) { // Not a normal closure
-            if (event.code === 1006) {
-              setMediaError('Connection lost unexpectedly. This may be due to media access issues. Please check your camera/microphone permissions and refresh the page.');
-            } else {
-            setMediaError('Connection lost. Please refresh the page to reconnect.');
-            }
-          }
-        };
-
-        ws.onmessage = (e) => {
-          try {
-            const data = JSON.parse(e.data);
-            console.log('📥 Received message:', data.type);
-            handleSocketMsg(data, stream);
-          } catch (error) {
-            console.error('❌ Failed to parse WebSocket message:', error);
-          }
-        };
-      })
-      .catch((err) => {
-        console.error('❌ Media error:', err);
-        let errorMsg = 'Failed to access camera/microphone. ';
-        
-        if (err.name === 'NotAllowedError') {
-          errorMsg += 'Please allow camera and microphone access.';
-        } else if (err.name === 'NotFoundError') {
-          errorMsg += 'No camera or microphone found.';
-        } else {
-          errorMsg += 'Please check your device settings.';
         }
-        
-        setMediaError(errorMsg);
-        setConnectionStatus('Media access failed');
+
+        const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+        const fallbackUrl = `${protocol}://${window.location.hostname}:8000`;
+        const url = `${fallbackUrl}/ws/${wsRoomId}`;
+        console.log('🔗 Production fallback WebSocket URL:', url);
+        return url;
+      }
+
+      const url = `${BACKEND_WEBSOCKET_URL}/ws/${wsRoomId}`;
+      console.log('🔗 Environment WebSocket URL:', url);
+      console.log('🔗 Environment variable value:', BACKEND_WEBSOCKET_URL);
+      return url;
+    };
+
+    const signalingUrl = getWsUrl();
+    console.log('🔗 Attempting WebSocket connection to:', signalingUrl);
+    const ws = new WebSocket(signalingUrl);
+    socketRef.current = ws;
+
+    ws.onopen = async () => {
+      console.log('✅ WebSocket connected successfully');
+      setIsConnected(true);
+      setConnectionStatus('Connected');
+
+      try {
+        if (user?.uid && actualRoomId && officeId) {
+          const sessionId = await startActivityTracking(
+            user.uid,
+            officeId,
+            actualRoomId,
+            userName
+          );
+          setActivitySessionId(sessionId);
+          console.log('✅ Activity tracking started:', sessionId);
+        }
+      } catch (error) {
+        console.error('❌ Failed to start activity tracking:', error);
+      }
+
+      const userInfo = {
+        type: 'join',
+        id: myId.current,
+        name: userName,
+        email: user?.email || '',
+        avatar: user?.photoURL || '',
+        firebaseUid: user?.uid || '',
+        displayName: user?.displayName || userName,
+        office_id: officeId || 'default',
+        role: isOwner ? 'owner' : 'member'
+      };
+
+      ws.send(JSON.stringify(userInfo));
+      console.log('📤 Sent join message with authenticated user info:', {
+        id: userInfo.id,
+        name: userInfo.name,
+        firebaseUid: userInfo.firebaseUid
       });
+
+      // Once WebSocket is open, request media
+      setConnectionStatus('Getting camera access...');
+
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setMediaError('Media devices not supported in this browser.');
+        setConnectionStatus('Browser not supported');
+        return;
+      }
+
+      const videoConstraints = isMobile
+        ? { width: { ideal: 640 }, height: { ideal: 360 }, frameRate: { ideal: 24 } }
+        : { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } };
+
+      navigator.mediaDevices
+        .getUserMedia({
+          video: videoConstraints,
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          }
+        })
+        .then((stream) => {
+          streamRef.current = stream;
+          setMediaError('');
+
+          console.log('🎥 Got local stream:', stream.getTracks().map(t => `${t.kind}: ${t.label}`));
+
+          if (myVideo.current) {
+            myVideo.current.srcObject = stream;
+            myVideo.current.muted = true;
+          }
+
+          peersRef.current.forEach(({ peer }) => {
+            try {
+              (peer as any).addStream(stream);
+            } catch (addErr) {
+              console.error('❌ Failed to add local stream to peer:', addErr);
+            }
+          });
+        })
+        .catch((err) => {
+          console.error('❌ Media error:', err);
+          let errorMsg = 'Failed to access camera/microphone. ';
+
+          if (err.name === 'NotAllowedError') {
+            errorMsg += 'Please allow camera and microphone access.';
+          } else if (err.name === 'NotFoundError') {
+            errorMsg += 'No camera or microphone found.';
+          } else {
+            errorMsg += 'Please check your device settings.';
+          }
+
+          setMediaError(errorMsg);
+          setConnectionStatus('Media access failed');
+        });
+    };
+
+    ws.onerror = (error) => {
+      console.error('❌ WebSocket error:', error);
+      setConnectionStatus('Connection failed');
+      setMediaError('Failed to connect to room server. Please check your internet connection and try refreshing the page.');
+    };
+
+    ws.onclose = (event) => {
+      console.warn('🔌 WebSocket closed:', event.code, event.reason);
+      setIsConnected(false);
+      setConnectionStatus('Disconnected');
+
+      if (event.code !== 1000) {
+        if (event.code === 1006) {
+          setMediaError('Connection lost unexpectedly. This may be due to media access issues. Please check your camera/microphone permissions and refresh the page.');
+        } else {
+          setMediaError('Connection lost. Please refresh the page to reconnect.');
+        }
+      }
+    };
+
+    ws.onmessage = (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        console.log('📥 Received message:', data.type);
+        handleSocketMsg(data);
+      } catch (error) {
+        console.error('❌ Failed to parse WebSocket message:', error);
+      }
+    };
 
     // Cleanup
     return () => {
@@ -918,7 +917,7 @@ export default function Room() {
           style={{ 
             width: '100%', 
             height: '100%',
-            objectFit: 'cover',
+            objectFit: isMobile ? 'contain' : 'cover',
             borderRadius: 'inherit'
           }} 
         />
@@ -1405,7 +1404,7 @@ export default function Room() {
                   style={{ 
                     width: '100%', 
                     height: '100%',
-                    objectFit: 'cover',
+                    objectFit: isMobile ? 'contain' : 'cover',
                     borderRadius: 'inherit'
                   }} 
                 />
