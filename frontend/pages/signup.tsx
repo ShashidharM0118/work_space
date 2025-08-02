@@ -104,14 +104,14 @@ export default function Signup() {
     return (
       <div style={{
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        backgroundColor: 'var(--color-background)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         fontFamily: '"Inter", sans-serif'
       }}>
         <div style={{
-          color: 'white',
+          color: 'var(--color-text)',
           textAlign: 'center',
           fontSize: '18px'
         }}>
@@ -133,7 +133,7 @@ export default function Signup() {
 
       <div style={{
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        backgroundColor: 'var(--color-background)',
         fontFamily: '"Inter", sans-serif',
         display: 'flex',
         alignItems: 'center',
@@ -169,41 +169,37 @@ export default function Signup() {
             textAlign: 'center',
             marginBottom: '40px'
           }}>
-            <div style={{
-              width: '80px',
-              height: '80px',
-              margin: '0 auto 24px',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              borderRadius: '20px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '32px',
-              boxShadow: '0 10px 25px -5px rgba(102, 126, 234, 0.4)'
-            }}>
-              🏢
-            </div>
+          <div style={{
+            width: '80px',
+            height: '80px',
+            margin: '0 auto 24px',
+            backgroundColor: 'var(--color-primary)',
+            borderRadius: '20px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '32px',
+            boxShadow: '0 10px 25px -5px rgba(102, 126, 234, 0.4)'
+          }}>
+            🏢
+          </div>
 
-            <h1 style={{
-              fontSize: '32px',
-              fontWeight: '800',
-              color: '#0F172A',
-              margin: '0 0 8px 0',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              backgroundClip: 'text',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent'
-            }}>
-              Join NexOffice
-            </h1>
+          <h1 style={{
+            fontSize: '32px',
+            fontWeight: '800',
+            color: 'var(--color-primary)',
+            margin: '0 0 8px 0'
+          }}>
+            Join NexOffice
+          </h1>
 
-            <p style={{
-              fontSize: '16px',
-              color: '#64748B',
-              margin: 0
-            }}>
-              Create your account and start collaborating
-            </p>
+          <p style={{
+            fontSize: '16px',
+            color: 'var(--color-text)',
+            margin: 0
+          }}>
+            Create your account and start collaborating
+          </p>
           </div>
 
           {/* Google Sign Up Button */}
@@ -213,9 +209,9 @@ export default function Signup() {
             style={{
               width: '100%',
               padding: '16px 24px',
-              backgroundColor: isGoogleLoading ? '#94A3B8' : 'white',
-              color: isGoogleLoading ? 'white' : '#333',
-              border: '2px solid #E2E8F0',
+              backgroundColor: isGoogleLoading ? 'var(--color-text)' : 'var(--color-background)',
+              color: isGoogleLoading ? 'var(--color-background)' : 'var(--color-text)',
+              border: '2px solid var(--color-background)',
               borderRadius: '12px',
               fontSize: '16px',
               fontWeight: '600',
@@ -228,8 +224,8 @@ export default function Signup() {
               marginBottom: '24px',
               opacity: isGoogleLoading ? 0.8 : 1
             }}
-            onMouseOver={(e) => !isGoogleLoading && (e.currentTarget.style.borderColor = '#667eea')}
-            onMouseOut={(e) => !isGoogleLoading && (e.currentTarget.style.borderColor = '#E2E8F0')}
+            onMouseOver={(e) => !isGoogleLoading && (e.currentTarget.style.borderColor = 'var(--color-primary)')}
+            onMouseOut={(e) => !isGoogleLoading && (e.currentTarget.style.borderColor = 'var(--color-background)')}
           >
             {isGoogleLoading ? (
               <>
@@ -237,7 +233,7 @@ export default function Signup() {
                   width: '20px',
                   height: '20px',
                   border: '2px solid rgba(255,255,255,0.3)',
-                  borderTop: '2px solid white',
+                  borderTop: '2px solid var(--color-background)',
                   borderRadius: '50%',
                   animation: 'spin 1s linear infinite'
                 }} />
@@ -261,13 +257,13 @@ export default function Signup() {
             display: 'flex',
             alignItems: 'center',
             margin: '32px 0',
-            color: '#94A3B8',
+            color: 'var(--color-text)',
             fontSize: '14px'
           }}>
             <div style={{
               flex: 1,
               height: '1px',
-              backgroundColor: '#E2E8F0'
+              backgroundColor: 'var(--color-background)'
             }} />
             <span style={{
               padding: '0 16px',
@@ -278,7 +274,7 @@ export default function Signup() {
             <div style={{
               flex: 1,
               height: '1px',
-              backgroundColor: '#E2E8F0'
+              backgroundColor: 'var(--color-background)'
             }} />
           </div>
 
@@ -290,7 +286,7 @@ export default function Signup() {
                 fontSize: '14px',
                 fontWeight: '600',
                 marginBottom: '8px',
-                color: '#374151'
+                color: 'var(--color-text)'
               }}>
                 Full Name
               </label>
@@ -303,14 +299,14 @@ export default function Signup() {
                 style={{
                   width: '100%',
                   padding: '12px 16px',
-                  border: '2px solid #E2E8F0',
+                  border: '2px solid var(--color-background)',
                   borderRadius: '8px',
                   fontSize: '16px',
                   transition: 'border-color 0.3s ease',
-                  backgroundColor: 'white'
+                  backgroundColor: 'var(--color-background)'
                 }}
-                onFocus={(e) => e.currentTarget.style.borderColor = '#667eea'}
-                onBlur={(e) => e.currentTarget.style.borderColor = '#E2E8F0'}
+                onFocus={(e) => e.currentTarget.style.borderColor = 'var(--color-primary)'}
+                onBlur={(e) => e.currentTarget.style.borderColor = 'var(--color-background)'}
               />
             </div>
 
@@ -320,7 +316,7 @@ export default function Signup() {
                 fontSize: '14px',
                 fontWeight: '600',
                 marginBottom: '8px',
-                color: '#374151'
+                color: 'var(--color-text)'
               }}>
                 Email Address
               </label>
@@ -333,14 +329,14 @@ export default function Signup() {
                 style={{
                   width: '100%',
                   padding: '12px 16px',
-                  border: '2px solid #E2E8F0',
+                  border: '2px solid var(--color-background)',
                   borderRadius: '8px',
                   fontSize: '16px',
                   transition: 'border-color 0.3s ease',
-                  backgroundColor: 'white'
+                  backgroundColor: 'var(--color-background)'
                 }}
-                onFocus={(e) => e.currentTarget.style.borderColor = '#667eea'}
-                onBlur={(e) => e.currentTarget.style.borderColor = '#E2E8F0'}
+                onFocus={(e) => e.currentTarget.style.borderColor = 'var(--color-primary)'}
+                onBlur={(e) => e.currentTarget.style.borderColor = 'var(--color-background)'}
               />
             </div>
 
@@ -350,7 +346,7 @@ export default function Signup() {
                 fontSize: '14px',
                 fontWeight: '600',
                 marginBottom: '8px',
-                color: '#374151'
+                color: 'var(--color-text)'
               }}>
                 Password
               </label>
@@ -363,14 +359,14 @@ export default function Signup() {
                 style={{
                   width: '100%',
                   padding: '12px 16px',
-                  border: '2px solid #E2E8F0',
+                  border: '2px solid var(--color-background)',
                   borderRadius: '8px',
                   fontSize: '16px',
                   transition: 'border-color 0.3s ease',
-                  backgroundColor: 'white'
+                  backgroundColor: 'var(--color-background)'
                 }}
-                onFocus={(e) => e.currentTarget.style.borderColor = '#667eea'}
-                onBlur={(e) => e.currentTarget.style.borderColor = '#E2E8F0'}
+                onFocus={(e) => e.currentTarget.style.borderColor = 'var(--color-primary)'}
+                onBlur={(e) => e.currentTarget.style.borderColor = 'var(--color-background)'}
               />
             </div>
 
@@ -380,7 +376,7 @@ export default function Signup() {
                 fontSize: '14px',
                 fontWeight: '600',
                 marginBottom: '8px',
-                color: '#374151'
+                color: 'var(--color-text)'
               }}>
                 Confirm Password
               </label>
@@ -393,14 +389,14 @@ export default function Signup() {
                 style={{
                   width: '100%',
                   padding: '12px 16px',
-                  border: '2px solid #E2E8F0',
+                  border: '2px solid var(--color-background)',
                   borderRadius: '8px',
                   fontSize: '16px',
                   transition: 'border-color 0.3s ease',
-                  backgroundColor: 'white'
+                  backgroundColor: 'var(--color-background)'
                 }}
-                onFocus={(e) => e.currentTarget.style.borderColor = '#667eea'}
-                onBlur={(e) => e.currentTarget.style.borderColor = '#E2E8F0'}
+                onFocus={(e) => e.currentTarget.style.borderColor = 'var(--color-primary)'}
+                onBlur={(e) => e.currentTarget.style.borderColor = 'var(--color-background)'}
               />
             </div>
 
@@ -410,8 +406,8 @@ export default function Signup() {
               style={{
                 width: '100%',
                 padding: '16px 24px',
-                backgroundColor: isLoading || !email || !password || !confirmPassword || !fullName ? '#94A3B8' : '#667eea',
-                color: 'white',
+                backgroundColor: isLoading || !email || !password || !confirmPassword || !fullName ? 'var(--color-text)' : 'var(--color-primary)',
+                color: 'var(--color-background)',
                 border: 'none',
                 borderRadius: '12px',
                 fontSize: '16px',
@@ -431,7 +427,7 @@ export default function Signup() {
                     width: '20px',
                     height: '20px',
                     border: '2px solid rgba(255,255,255,0.3)',
-                    borderTop: '2px solid white',
+                    borderTop: '2px solid var(--color-background)',
                     borderRadius: '50%',
                     animation: 'spin 1s linear infinite'
                   }} />
@@ -447,10 +443,10 @@ export default function Signup() {
           {error && (
             <div style={{
               padding: '16px',
-              backgroundColor: '#FEF2F2',
-              border: '1px solid #FECACA',
+              backgroundColor: 'var(--color-background)',
+              border: '1px solid var(--color-primary)',
               borderRadius: '8px',
-              color: '#DC2626',
+              color: 'var(--color-primary)',
               fontSize: '14px',
               marginBottom: '24px',
               display: 'flex',
@@ -466,12 +462,12 @@ export default function Signup() {
           <div style={{
             textAlign: 'center',
             fontSize: '14px',
-            color: '#64748B'
+            color: 'var(--color-text)'
           }}>
             <p style={{ margin: '0 0 16px 0' }}>
               Already have an account?{' '}
               <Link href="/login" style={{
-                color: '#667eea',
+                color: 'var(--color-primary)',
                 textDecoration: 'none',
                 fontWeight: '600'
               }}>
@@ -480,7 +476,7 @@ export default function Signup() {
             </p>
             
             <Link href="/" style={{
-              color: '#64748B',
+              color: 'var(--color-text)',
               textDecoration: 'none',
               fontSize: '13px'
             }}>
@@ -492,16 +488,16 @@ export default function Signup() {
           <div style={{
             marginTop: '24px',
             padding: '16px',
-            backgroundColor: '#F8FAFC',
+            backgroundColor: 'var(--color-background)',
             borderRadius: '8px',
             fontSize: '12px',
-            color: '#64748B',
+            color: 'var(--color-text)',
             textAlign: 'center'
           }}>
             By creating an account, you agree to our{' '}
-            <a href="#" style={{ color: '#667eea', textDecoration: 'none' }}>Terms of Service</a>
+            <a href="#" style={{ color: 'var(--color-primary)', textDecoration: 'none' }}>Terms of Service</a>
             {' '}and{' '}
-            <a href="#" style={{ color: '#667eea', textDecoration: 'none' }}>Privacy Policy</a>
+            <a href="#" style={{ color: 'var(--color-primary)', textDecoration: 'none' }}>Privacy Policy</a>
           </div>
         </div>
       </div>

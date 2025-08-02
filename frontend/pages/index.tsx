@@ -26,14 +26,14 @@ export default function LandingPage() {
     return (
       <div style={{
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
+        backgroundColor: 'var(--color-background)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         fontFamily: '"Inter", sans-serif'
       }}>
         <div style={{
-          color: 'white',
+          color: 'var(--color-text)',
           textAlign: 'center',
           fontSize: '18px'
         }}>
@@ -55,8 +55,8 @@ export default function LandingPage() {
 
       <div style={{
         fontFamily: '"Inter", sans-serif',
-        backgroundColor: '#0f172a',
-        color: 'white',
+        backgroundColor: 'var(--color-background)',
+        color: 'var(--color-text)',
         overflow: 'hidden'
       }}>
         {/* Fixed Navigation */}
@@ -71,9 +71,8 @@ export default function LandingPage() {
             right: 0,
             zIndex: 50,
             padding: '20px 40px',
-            background: 'rgba(15, 23, 42, 0.95)',
-            backdropFilter: 'blur(20px)',
-            borderBottom: '1px solid rgba(148, 163, 184, 0.1)',
+            backgroundColor: 'var(--color-background)',
+            borderBottom: '1px solid var(--color-primary)',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center'
@@ -96,10 +95,7 @@ export default function LandingPage() {
             <span style={{
               fontSize: '24px',
               fontWeight: '800',
-              background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
-              backgroundClip: 'text',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent'
+              color: 'var(--color-primary)'
             }}>
               NexOffice
             </span>
@@ -112,27 +108,27 @@ export default function LandingPage() {
             alignItems: 'center'
           }}>
             <Link href="#features" style={{
-              color: '#94a3b8',
+              color: 'var(--color-text)',
               textDecoration: 'none',
               fontSize: '16px',
               fontWeight: '500',
               transition: 'color 0.3s ease'
             }}
-            onMouseOver={(e) => e.currentTarget.style.color = '#f1f5f9'}
-            onMouseOut={(e) => e.currentTarget.style.color = '#94a3b8'}
+            onMouseOver={(e) => e.currentTarget.style.color = 'var(--color-primary)'}
+            onMouseOut={(e) => e.currentTarget.style.color = 'var(--color-text)'}
             >
               Features
             </Link>
 
             <Link href="#about" style={{
-              color: '#94a3b8',
+              color: 'var(--color-text)',
               textDecoration: 'none',
               fontSize: '16px',
               fontWeight: '500',
               transition: 'color 0.3s ease'
             }}
-            onMouseOver={(e) => e.currentTarget.style.color = '#f1f5f9'}
-            onMouseOut={(e) => e.currentTarget.style.color = '#94a3b8'}
+            onMouseOver={(e) => e.currentTarget.style.color = 'var(--color-primary)'}
+            onMouseOut={(e) => e.currentTarget.style.color = 'var(--color-text)'}
             >
               About
             </Link>
@@ -172,7 +168,7 @@ export default function LandingPage() {
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
               <Link href="/signup" style={{
                 padding: '12px 24px',
-                background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                backgroundColor: 'var(--color-primary)',
                 color: 'white',
                 textDecoration: 'none',
                 borderRadius: '8px',
@@ -203,7 +199,7 @@ export default function LandingPage() {
           alignItems: 'center',
           justifyContent: 'center',
           position: 'relative',
-          background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%)',
+          backgroundColor: 'var(--color-background)',
           overflow: 'hidden'
         }}>
           {/* Three.js Virtual Office Background */}
@@ -280,7 +276,7 @@ export default function LandingPage() {
                 fontWeight: '900',
                 margin: '0 0 24px 0',
                 lineHeight: '1.1',
-                background: 'linear-gradient(135deg, #f1f5f9 0%, #cbd5e1 100%)',
+                backgroundColor: 'var(--color-background)',
                 backgroundClip: 'text',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent'
@@ -289,7 +285,7 @@ export default function LandingPage() {
               Transform Your
               <br />
               <span style={{
-                background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                backgroundColor: 'var(--color-primary)',
                 backgroundClip: 'text',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent'
@@ -305,7 +301,7 @@ export default function LandingPage() {
               style={{
                 fontSize: '24px',
                 lineHeight: '1.5',
-                color: '#94a3b8',
+                color: 'var(--color-text)',
                 maxWidth: '600px',
                 margin: '0 auto 48px auto'
               }}
@@ -329,7 +325,7 @@ export default function LandingPage() {
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                 <Link href="/signup" style={{
                   padding: '20px 40px',
-                  background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                  backgroundColor: 'var(--color-primary)',
                   color: 'white',
                   textDecoration: 'none',
                   borderRadius: '12px',
@@ -425,7 +421,7 @@ export default function LandingPage() {
         {/* Features Section */}
         <section id="features" style={{
           padding: '120px 40px',
-          backgroundColor: '#1e293b',
+          backgroundColor: 'var(--color-background)',
           position: 'relative'
         }}>
           <div style={{
@@ -443,7 +439,7 @@ export default function LandingPage() {
                 fontSize: '48px',
                 fontWeight: '800',
                 margin: '0 0 24px 0',
-                background: 'linear-gradient(135deg, #f1f5f9 0%, #cbd5e1 100%)',
+                backgroundColor: 'var(--color-background)',
                 backgroundClip: 'text',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent'
@@ -452,7 +448,7 @@ export default function LandingPage() {
               </h2>
               <p style={{
                 fontSize: '20px',
-                color: '#94a3b8',
+                color: 'var(--color-text)',
                 maxWidth: '600px',
                 margin: '0 auto'
               }}>
@@ -536,7 +532,7 @@ export default function LandingPage() {
                   </h3>
                   <p style={{
                     fontSize: '16px',
-                    color: '#94a3b8',
+                    color: 'var(--color-text)',
                     lineHeight: '1.6',
                     margin: 0
                   }}>
@@ -553,7 +549,7 @@ export default function LandingPage() {
         {/* About Section */}
         <section id="about" style={{
           padding: '120px 40px',
-          backgroundColor: '#1e293b'
+          backgroundColor: 'var(--color-background)'
         }}>
           <div style={{
             maxWidth: '1200px',
@@ -573,7 +569,7 @@ export default function LandingPage() {
                 fontSize: '48px',
                 fontWeight: '800',
                 margin: '0 0 24px 0',
-                background: 'linear-gradient(135deg, #f1f5f9 0%, #cbd5e1 100%)',
+                backgroundColor: 'var(--color-background)',
                 backgroundClip: 'text',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent'
@@ -582,7 +578,7 @@ export default function LandingPage() {
               </h2>
               <p style={{
                 fontSize: '18px',
-                color: '#94a3b8',
+                color: 'var(--color-text)',
                 lineHeight: '1.7',
                 marginBottom: '32px'
               }}>
@@ -592,7 +588,7 @@ export default function LandingPage() {
               </p>
               <p style={{
                 fontSize: '18px',
-                color: '#94a3b8',
+                color: 'var(--color-text)',
                 lineHeight: '1.7',
                 marginBottom: '40px'
               }}>
@@ -602,7 +598,7 @@ export default function LandingPage() {
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                 <Link href="/signup" style={{
                   padding: '16px 32px',
-                  background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                  backgroundColor: 'var(--color-primary)',
                   color: 'white',
                   textDecoration: 'none',
                   borderRadius: '8px',
@@ -675,7 +671,7 @@ export default function LandingPage() {
         {/* Footer */}
         <footer style={{
           padding: '60px 40px 40px',
-          backgroundColor: '#0f172a',
+          backgroundColor: 'var(--color-background)',
           borderTop: '1px solid rgba(148, 163, 184, 0.1)'
         }}>
           <div style={{
@@ -694,7 +690,7 @@ export default function LandingPage() {
               <span style={{
                 fontSize: '24px',
                 fontWeight: '800',
-                background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                backgroundColor: 'var(--color-primary)',
                 backgroundClip: 'text',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent'
@@ -719,13 +715,13 @@ export default function LandingPage() {
             }}>
               {['Privacy Policy', 'Terms of Service', 'Contact', 'Support'].map((link, index) => (
                 <a key={index} href="#" style={{
-                  color: '#94a3b8',
+                  color: 'var(--color-text)',
                   textDecoration: 'none',
                   fontSize: '14px',
                   transition: 'color 0.3s ease'
                 }}
                 onMouseOver={(e) => e.currentTarget.style.color = '#f1f5f9'}
-                onMouseOut={(e) => e.currentTarget.style.color = '#94a3b8'}
+                onMouseOut={(e) => e.currentTarget.style.color = 'var(--color-text)'}
                 >
                   {link}
                 </a>
