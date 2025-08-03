@@ -237,10 +237,7 @@ export default function DemoModal({ isOpen, onClose }: DemoModalProps) {
               fontSize: isMobile ? '20px' : '28px',
               fontWeight: '800',
               margin: '0 0 8px 0',
-              background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
-              backgroundClip: 'text',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent'
+              color: '#3b82f6'
             }}>
               NexOffice Demo
             </h2>
@@ -265,7 +262,7 @@ export default function DemoModal({ isOpen, onClose }: DemoModalProps) {
                 onClick={startDemo}
                 style={{
                   padding: '12px 24px',
-                  background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                  background: '#3b82f6',
                   color: 'white',
                   border: 'none',
                   borderRadius: '12px',
@@ -362,7 +359,7 @@ export default function DemoModal({ isOpen, onClose }: DemoModalProps) {
                 transition={{ duration: 0.5 }}
                 style={{
                   height: '100%',
-                  background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                  background: '#3b82f6',
                   borderRadius: '2px'
                 }}
               />
@@ -527,7 +524,7 @@ export default function DemoModal({ isOpen, onClose }: DemoModalProps) {
                           width: '80px',
                           height: '80px',
                           margin: '0 auto 24px',
-                          background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                          background: '#3b82f6',
                           borderRadius: '20px',
                           display: 'flex',
                           alignItems: 'center',
@@ -604,7 +601,7 @@ export default function DemoModal({ isOpen, onClose }: DemoModalProps) {
                         style={{
                           width: '100%',
                           padding: '16px',
-                          background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                          background: '#3b82f6',
                           color: 'white',
                           border: 'none',
                           borderRadius: '12px',
@@ -642,7 +639,7 @@ export default function DemoModal({ isOpen, onClose }: DemoModalProps) {
                   style={{
                     flex: 1,
                     position: 'relative',
-                    background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
+                    background: '#f8fafc',
                     borderRadius: '16px',
                     border: '2px solid #cbd5e1',
                     overflow: 'hidden'

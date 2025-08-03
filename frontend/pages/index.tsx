@@ -26,7 +26,7 @@ export default function LandingPage() {
     return (
       <div style={{
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
+        background: '#334155',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -60,7 +60,7 @@ export default function LandingPage() {
         overflow: 'hidden'
       }}>
         {/* Fixed Navigation */}
-        <motion.nav 
+        <motion.nav
           initial={{ y: -100 }}
           animate={{ y: 0 }}
           transition={{ duration: 0.6 }}
@@ -80,7 +80,7 @@ export default function LandingPage() {
           }}
         >
           {/* Logo */}
-          <motion.div 
+          <motion.div
             whileHover={{ scale: 1.05 }}
             style={{
               display: 'flex',
@@ -96,10 +96,7 @@ export default function LandingPage() {
             <span style={{
               fontSize: '24px',
               fontWeight: '800',
-              background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
-              backgroundClip: 'text',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent'
+              color: '#3b82f6'
             }}>
               NexOffice
             </span>
@@ -118,8 +115,8 @@ export default function LandingPage() {
               fontWeight: '500',
               transition: 'color 0.3s ease'
             }}
-            onMouseOver={(e) => e.currentTarget.style.color = '#f1f5f9'}
-            onMouseOut={(e) => e.currentTarget.style.color = '#94a3b8'}
+              onMouseOver={(e) => e.currentTarget.style.color = '#f1f5f9'}
+              onMouseOut={(e) => e.currentTarget.style.color = '#94a3b8'}
             >
               Features
             </Link>
@@ -131,8 +128,8 @@ export default function LandingPage() {
               fontWeight: '500',
               transition: 'color 0.3s ease'
             }}
-            onMouseOver={(e) => e.currentTarget.style.color = '#f1f5f9'}
-            onMouseOut={(e) => e.currentTarget.style.color = '#94a3b8'}
+              onMouseOver={(e) => e.currentTarget.style.color = '#f1f5f9'}
+              onMouseOut={(e) => e.currentTarget.style.color = '#94a3b8'}
             >
               About
             </Link>
@@ -156,23 +153,23 @@ export default function LandingPage() {
                 border: '1px solid rgba(148, 163, 184, 0.2)',
                 transition: 'all 0.3s ease'
               }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(148, 163, 184, 0.1)';
-                e.currentTarget.style.borderColor = 'rgba(148, 163, 184, 0.4)';
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
-                e.currentTarget.style.borderColor = 'rgba(148, 163, 184, 0.2)';
-              }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(148, 163, 184, 0.1)';
+                  e.currentTarget.style.borderColor = 'rgba(148, 163, 184, 0.4)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                  e.currentTarget.style.borderColor = 'rgba(148, 163, 184, 0.2)';
+                }}
               >
                 Sign In
               </Link>
             </motion.div>
-            
+
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
               <Link href="/signup" style={{
                 padding: '12px 24px',
-                background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                background: '#3b82f6',
                 color: 'white',
                 textDecoration: 'none',
                 borderRadius: '8px',
@@ -181,14 +178,14 @@ export default function LandingPage() {
                 transition: 'all 0.3s ease',
                 boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
               }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.boxShadow = '0 8px 24px rgba(59, 130, 246, 0.4)';
-                e.currentTarget.style.transform = 'translateY(-1px)';
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)';
-                e.currentTarget.style.transform = 'translateY(0)';
-              }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.boxShadow = '0 8px 24px rgba(59, 130, 246, 0.4)';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
               >
                 Get Started
               </Link>
@@ -203,12 +200,12 @@ export default function LandingPage() {
           alignItems: 'center',
           justifyContent: 'center',
           position: 'relative',
-          background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%)',
+          background: '#0f172a',
           overflow: 'hidden'
         }}>
           {/* Three.js Virtual Office Background */}
           <VirtualOfficeBackground />
-          
+
           {/* Background Elements */}
           <motion.div
             style={{ y: y1 }}
@@ -220,13 +217,13 @@ export default function LandingPage() {
               left: '10%',
               width: '300px',
               height: '300px',
-              background: 'radial-gradient(circle, rgba(59, 130, 246, 0.1) 0%, transparent 70%)',
+              background: 'rgba(59, 130, 246, 0.05)',
               borderRadius: '50%',
               filter: 'blur(40px)',
               zIndex: 1
             }} />
           </motion.div>
-          
+
           <motion.div
             style={{ y: y2 }}
             className="absolute inset-0"
@@ -237,7 +234,7 @@ export default function LandingPage() {
               right: '10%',
               width: '400px',
               height: '400px',
-              background: 'radial-gradient(circle, rgba(139, 92, 246, 0.1) 0%, transparent 70%)',
+              background: 'rgba(139, 92, 246, 0.05)',
               borderRadius: '50%',
               filter: 'blur(40px)',
               zIndex: 1
@@ -280,19 +277,13 @@ export default function LandingPage() {
                 fontWeight: '900',
                 margin: '0 0 24px 0',
                 lineHeight: '1.1',
-                background: 'linear-gradient(135deg, #f1f5f9 0%, #cbd5e1 100%)',
-                backgroundClip: 'text',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent'
+                color: '#f1f5f9'
               }}
             >
               Transform Your
               <br />
               <span style={{
-                background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
-                backgroundClip: 'text',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent'
+                color: '#3b82f6'
               }}>
                 Remote Workspace
               </span>
@@ -310,7 +301,7 @@ export default function LandingPage() {
                 margin: '0 auto 48px auto'
               }}
             >
-              Experience seamless collaboration with enterprise-grade virtual offices, 
+              Experience seamless collaboration with enterprise-grade virtual offices,
               HD video conferencing, and real-time team synchronization.
             </motion.p>
 
@@ -329,7 +320,7 @@ export default function LandingPage() {
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                 <Link href="/signup" style={{
                   padding: '20px 40px',
-                  background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                  background: '#3b82f6',
                   color: 'white',
                   textDecoration: 'none',
                   borderRadius: '12px',
@@ -341,14 +332,14 @@ export default function LandingPage() {
                   boxShadow: '0 10px 30px rgba(59, 130, 246, 0.3)',
                   transition: 'all 0.3s ease'
                 }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.boxShadow = '0 15px 40px rgba(59, 130, 246, 0.4)';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.boxShadow = '0 10px 30px rgba(59, 130, 246, 0.3)';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.boxShadow = '0 15px 40px rgba(59, 130, 246, 0.4)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.boxShadow = '0 10px 30px rgba(59, 130, 246, 0.3)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
                 >
                   🚀 Start Free Trial
                 </Link>
@@ -443,10 +434,7 @@ export default function LandingPage() {
                 fontSize: '48px',
                 fontWeight: '800',
                 margin: '0 0 24px 0',
-                background: 'linear-gradient(135deg, #f1f5f9 0%, #cbd5e1 100%)',
-                backgroundClip: 'text',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent'
+                color: '#f1f5f9'
               }}>
                 Powerful Features for Modern Teams
               </h2>
@@ -573,10 +561,7 @@ export default function LandingPage() {
                 fontSize: '48px',
                 fontWeight: '800',
                 margin: '0 0 24px 0',
-                background: 'linear-gradient(135deg, #f1f5f9 0%, #cbd5e1 100%)',
-                backgroundClip: 'text',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent'
+                color: '#f1f5f9'
               }}>
                 Built for the Future of Work
               </h2>
@@ -586,8 +571,8 @@ export default function LandingPage() {
                 lineHeight: '1.7',
                 marginBottom: '32px'
               }}>
-                NexOffice is being created by a team of remote work experts who understand the challenges 
-                of distributed teams. We're building a platform that doesn't just replicate in-person 
+                NexOffice is being created by a team of remote work experts who understand the challenges
+                of distributed teams. We're building a platform that doesn't just replicate in-person
                 meetings, but enhances them with powerful digital-first features.
               </p>
               <p style={{
@@ -596,13 +581,13 @@ export default function LandingPage() {
                 lineHeight: '1.7',
                 marginBottom: '40px'
               }}>
-                Designed to scale from small startups to large enterprises, 
+                Designed to scale from small startups to large enterprises,
                 NexOffice will be the virtual office platform that grows with your business.
               </p>
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                 <Link href="/signup" style={{
                   padding: '16px 32px',
-                  background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                  background: '#3b82f6',
                   color: 'white',
                   textDecoration: 'none',
                   borderRadius: '8px',
@@ -694,15 +679,12 @@ export default function LandingPage() {
               <span style={{
                 fontSize: '24px',
                 fontWeight: '800',
-                background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
-                backgroundClip: 'text',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent'
+                color: '#3b82f6'
               }}>
                 NexOffice
               </span>
             </div>
-            
+
             <p style={{
               fontSize: '16px',
               color: '#64748b',
@@ -710,7 +692,7 @@ export default function LandingPage() {
             }}>
               Next Generation Virtual Office Platform
             </p>
-            
+
             <div style={{
               display: 'flex',
               justifyContent: 'center',
@@ -724,14 +706,14 @@ export default function LandingPage() {
                   fontSize: '14px',
                   transition: 'color 0.3s ease'
                 }}
-                onMouseOver={(e) => e.currentTarget.style.color = '#f1f5f9'}
-                onMouseOut={(e) => e.currentTarget.style.color = '#94a3b8'}
+                  onMouseOver={(e) => e.currentTarget.style.color = '#f1f5f9'}
+                  onMouseOut={(e) => e.currentTarget.style.color = '#94a3b8'}
                 >
                   {link}
                 </a>
               ))}
             </div>
-            
+
             <p style={{
               fontSize: '14px',
               color: '#475569',

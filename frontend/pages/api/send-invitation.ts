@@ -46,9 +46,9 @@ export default async function handler(
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f4f4f4; }
         .container { max-width: 600px; margin: 0 auto; background: white; padding: 0; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-        .header { background: linear-gradient(135deg, #0052CC 0%, #0065FF 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+        .header { background: #0052CC; color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
         .content { padding: 30px; }
-        .button { display: inline-block; background: linear-gradient(135deg, #0052CC 0%, #0065FF 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 25px; font-weight: bold; margin: 20px 0; }
+        .button { display: inline-block; background: #0052CC; color: white; padding: 15px 30px; text-decoration: none; border-radius: 25px; font-weight: bold; margin: 20px 0; }
         .footer { background: #f8f9fa; padding: 20px; text-align: center; font-size: 14px; color: #666; border-radius: 0 0 10px 10px; }
         .logo { font-size: 48px; margin-bottom: 10px; }
     </style>

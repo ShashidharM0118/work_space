@@ -195,7 +195,7 @@ export default function Dashboard() {
     return (
       <div style={{
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: '#4f46e5',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -223,7 +223,7 @@ export default function Dashboard() {
 
       <div style={{
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #0F1419 0%, #1E293B 25%, #334155 50%, #475569 100%)',
+        background: '#1e293b',
         fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
         color: 'white'
       }}>
@@ -249,10 +249,7 @@ export default function Dashboard() {
               fontSize: '24px',
               fontWeight: '700',
               margin: 0,
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              backgroundClip: 'text',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent'
+              color: '#4f46e5'
             }}>
               NexOffice
             </h1>
@@ -471,7 +468,7 @@ export default function Dashboard() {
                       fontSize: '16px',
                       fontWeight: '600',
                       margin: '0 0 8px 0',
-                      color: '#667eea'
+                      color: '#4f46e5'
                     }}>
                       {room.roomName}
                     </h4>
@@ -624,7 +621,7 @@ export default function Dashboard() {
                   disabled={isCreatingOffice || !newOfficeName.trim()}
                   style={{
                     padding: '12px 24px',
-                    backgroundColor: isCreatingOffice || !newOfficeName.trim() ? '#666' : '#667eea',
+                    backgroundColor: isCreatingOffice || !newOfficeName.trim() ? '#666' : '#4f46e5',
                     color: 'white',
                     border: 'none',
                     borderRadius: '8px',
@@ -756,7 +753,7 @@ export default function Dashboard() {
                   disabled={!officeCode.trim()}
                   style={{
                     padding: '12px 24px',
-                    backgroundColor: !officeCode.trim() ? '#666' : '#667eea',
+                    backgroundColor: !officeCode.trim() ? '#666' : '#4f46e5',
                     color: 'white',
                     border: 'none',
                     borderRadius: '8px',

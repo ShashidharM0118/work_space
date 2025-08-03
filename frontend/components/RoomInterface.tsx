@@ -103,7 +103,7 @@ export default function RoomInterface(props: RoomInterfaceProps) {
   return (
     <div style={{ 
       height: '100vh', 
-      background: 'linear-gradient(135deg, #0F1419 0%, #1E293B 25%, #334155 50%, #475569 100%)',
+      background: '#1e293b',
       fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
       display: 'flex',
       flexDirection: 'column',

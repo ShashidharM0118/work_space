@@ -219,7 +219,7 @@ export default function VirtualOfficeBackground({ className }: VirtualOfficeBack
               left: 0;
               width: 100%;
               height: 100%;
-              background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+              background: #0f172a;
               opacity: 0.9;
             "></div>
           `;

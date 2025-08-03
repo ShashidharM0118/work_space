@@ -104,7 +104,7 @@ export default function Signup() {
     return (
       <div style={{
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: '#4f46e5',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -133,7 +133,7 @@ export default function Signup() {
 
       <div style={{
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: '#4f46e5',
         fontFamily: '"Inter", sans-serif',
         display: 'flex',
         alignItems: 'center',
@@ -148,7 +148,7 @@ export default function Signup() {
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundImage: `radial-gradient(circle at 1px 1px, rgba(255,255,255,0.15) 1px, transparent 0)`,
+          backgroundImage: 'none',
           backgroundSize: '20px 20px',
           opacity: 0.5
         }} />
@@ -173,7 +173,7 @@ export default function Signup() {
               width: '80px',
               height: '80px',
               margin: '0 auto 24px',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              background: '#4f46e5',
               borderRadius: '20px',
               display: 'flex',
               alignItems: 'center',
@@ -189,10 +189,7 @@ export default function Signup() {
               fontWeight: '800',
               color: '#0F172A',
               margin: '0 0 8px 0',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              backgroundClip: 'text',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent'
+              color: '#4f46e5'
             }}>
               Join NexOffice
             </h1>

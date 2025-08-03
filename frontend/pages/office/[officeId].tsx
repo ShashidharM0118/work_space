@@ -454,7 +454,7 @@ export default function Office() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'linear-gradient(135deg, #0F1419 0%, #1E293B 25%, #334155 50%, #475569 100%)',
+        background: '#1e293b',
         color: 'white',
         fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
       }}>
@@ -482,7 +482,7 @@ export default function Office() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'linear-gradient(135deg, #0F1419 0%, #1E293B 25%, #334155 50%, #475569 100%)',
+        background: '#1e293b',
         color: 'white',
         fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
       }}>
@@ -496,7 +496,7 @@ export default function Office() {
             onClick={() => router.push('/')}
             style={{
               padding: '16px 32px',
-              background: 'linear-gradient(135deg, #0052CC 0%, #0065FF 100%)',
+              background: '#0065FF',
               color: 'white',
               border: 'none',
               borderRadius: '28px',
@@ -525,7 +525,7 @@ export default function Office() {
 
       <div style={{
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #0F1419 0%, #1E293B 25%, #334155 50%, #475569 100%)',
+        background: '#1e293b',
         fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
       }}>
         {/* Header */}
@@ -608,7 +608,7 @@ export default function Office() {
                 onClick={() => setShowInviteModal(true)}
                 style={{
                   padding: isMobile ? '8px 12px' : '10px 16px',
-                  background: 'linear-gradient(135deg, #0F9D58 0%, #00875A 100%)',
+                  background: '#059669',
                   color: 'white',
                   border: 'none',
                   borderRadius: '20px',
@@ -641,7 +641,7 @@ export default function Office() {
                 onClick={() => setShowJoinRequests(true)}
                 style={{
                   padding: isMobile ? '8px 12px' : '10px 16px',
-                  background: 'linear-gradient(135deg, #BF2600 0%, #DC2626 100%)',
+                  background: '#dc2626',
                   color: 'white',
                   border: 'none',
                   borderRadius: '20px',
@@ -724,7 +724,7 @@ export default function Office() {
             maxWidth: '1400px',
             height: isMobile ? '60vh' : '75vh',
             minHeight: '500px',
-            background: 'linear-gradient(135deg, #F8FAFC 0%, #E2E8F0 100%)',
+            background: '#E2E8F0',
             borderRadius: '16px',
             border: '2px solid #CBD5E1',
             boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
@@ -737,10 +737,7 @@ export default function Office() {
               left: 0,
               right: 0,
               bottom: 0,
-              backgroundImage: `
-                linear-gradient(#E2E8F0 1px, transparent 1px),
-                linear-gradient(90deg, #E2E8F0 1px, transparent 1px)
-              `,
+              backgroundImage: 'none',
               backgroundSize: '40px 40px',
               opacity: 0.5
             }} />
@@ -881,7 +878,7 @@ export default function Office() {
             position: 'fixed',
             bottom: '24px',
             right: '24px',
-            background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+            background: '#059669',
             color: 'white',
             padding: '16px 24px',
             borderRadius: '16px',
@@ -1027,7 +1024,7 @@ export default function Office() {
                           onClick={() => handleJoinRequestAction(request.id, 'approve')}
                           style={{
                             padding: '8px 16px',
-                            background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                            background: '#059669',
                             color: 'white',
                             border: 'none',
                             borderRadius: '12px',
@@ -1161,7 +1158,7 @@ export default function Office() {
                         minWidth: '120px',
                         padding: '16px 24px',
                         background: userName.trim() 
-                          ? `linear-gradient(135deg, ${office.rooms.find(r => r.id === selectedRoom)?.color} 0%, ${office.rooms.find(r => r.id === selectedRoom)?.color}CC 100%)`
+                          ? office.rooms.find(r => r.id === selectedRoom)?.color || '#3b82f6'
                           : '#9CA3AF',
                         color: 'white',
                         border: 'none',
@@ -1339,7 +1336,7 @@ export default function Office() {
                       }}
                       style={{
                         padding: '12px 24px',
-                        background: 'linear-gradient(135deg, #0F9D58 0%, #00875A 100%)',
+                        background: '#059669',
                         color: 'white',
                         border: 'none',
                         borderRadius: '12px',
@@ -1427,7 +1424,7 @@ export default function Office() {
                         width: '100%',
                         padding: '16px',
                         background: inviteEmail.trim() && !inviteLoading 
-                          ? 'linear-gradient(135deg, #0F9D58 0%, #00875A 100%)' 
+                          ? '#059669' 
                           : '#666',
                         color: 'white',
                         border: 'none',
@@ -1503,7 +1500,7 @@ export default function Office() {
                       width: '64px',
                       height: '64px',
                       borderRadius: '50%',
-                      background: 'linear-gradient(135deg, #0052CC 0%, #0065FF 100%)',
+                      background: '#0065FF',
                       margin: '0 auto 16px',
                       display: 'flex',
                       alignItems: 'center',
@@ -1832,7 +1829,7 @@ export default function Office() {
                         onClick={saveOfficeSettings}
                         style={{
                           padding: '12px 24px',
-                          background: 'linear-gradient(135deg, #0052CC 0%, #0065FF 100%)',
+                          background: '#0065FF',
                           color: 'white',
                           border: 'none',
                           borderRadius: '8px',

@@ -883,7 +883,7 @@ export default function Room() {
       <div style={{
         position: 'relative',
         aspectRatio: '16/9',
-        background: 'linear-gradient(135deg, #374151 0%, #1f2937 100%)',
+        background: '#374151',
         borderRadius: isMobile ? '12px' : (() => {
           const totalParticipants = peers.length + 1;
           return totalParticipants === 1 ? '24px' : totalParticipants <= 4 ? '20px' : '16px';
@@ -945,7 +945,7 @@ export default function Room() {
             width: '28px',
             height: '28px',
             borderRadius: '50%',
-            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+            background: '#10b981',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -971,7 +971,7 @@ export default function Room() {
             top: '50%',
             left: '50%',
             transform: 'translate(-50%, -50%)',
-            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+            background: '#10b981',
             color: 'white',
             width: isMobile ? '80px' : '100px',
             height: isMobile ? '80px' : '100px',
@@ -1071,7 +1071,7 @@ export default function Room() {
       {/* Modern Header */}
       <header style={{
         padding: isMobile ? '12px 16px' : '16px 32px',
-        background: 'linear-gradient(135deg, #2d3748 0%, #1a202c 100%)',
+        background: '#2d3748',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
@@ -1091,7 +1091,7 @@ export default function Room() {
               width: '32px',
               height: '32px',
               borderRadius: '8px',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              background: '#4f46e5',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -1206,7 +1206,7 @@ export default function Room() {
               onClick={() => router.push(`/office/${officeId}`)}
               style={{
                 padding: isMobile ? '8px 12px' : '10px 16px',
-                background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+                background: '#8b5cf6',
                 color: 'white',
                 border: 'none',
                 borderRadius: '12px',
@@ -1242,7 +1242,7 @@ export default function Room() {
               width: isMobile ? '40px' : '44px',
               height: isMobile ? '40px' : '44px',
               borderRadius: '50%',
-              background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+              background: '#3b82f6',
               color: 'white',
               border: 'none',
               cursor: 'pointer',
@@ -1275,7 +1275,7 @@ export default function Room() {
         display: 'flex',
         position: 'relative',
         overflow: 'hidden',
-        background: 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)'
+        background: '#1f2937'
       }}>
         {/* Video Area */}
         <div style={{ 
@@ -1366,7 +1366,7 @@ export default function Room() {
                   // Use wider aspect ratio for single person, standard for others
                   return totalParticipants === 1 ? '16/9' : '16/9';
                 })(),
-                background: 'linear-gradient(135deg, #374151 0%, #1f2937 100%)',
+                background: '#374151',
                 borderRadius: isMobile ? '12px' : (() => {
                   const totalParticipants = peers.length + 1;
                   return totalParticipants === 1 ? '24px' : totalParticipants <= 4 ? '20px' : '16px';
@@ -1421,7 +1421,7 @@ export default function Room() {
                   {isScreenSharing && (
                     <div style={{
                       padding: '6px 12px',
-                      background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                      background: '#ef4444',
                       color: 'white',
                       borderRadius: '20px',
                       fontSize: '12px',
@@ -1465,7 +1465,7 @@ export default function Room() {
                     width: '28px',
                     height: '28px',
                     borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                    background: '#3b82f6',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -1531,7 +1531,7 @@ export default function Room() {
                     top: '50%',
                     left: '50%',
                     transform: 'translate(-50%, -50%)',
-                    background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                    background: '#3b82f6',
                     color: 'white',
                     width: isMobile ? '80px' : '100px',
                     height: isMobile ? '80px' : '100px',
@@ -1559,7 +1559,7 @@ export default function Room() {
               {participants.length > 1 && peers.length === 0 && (
                 <div style={{
                   aspectRatio: '16/9',
-                  background: 'linear-gradient(135deg, #374151 0%, #1f2937 100%)',
+                  background: '#374151',
                   borderRadius: '20px',
                   display: 'flex',
                   flexDirection: 'column',
@@ -1574,7 +1574,7 @@ export default function Room() {
                     width: '80px',
                     height: '80px',
                     borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    background: '#10b981',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -1608,7 +1608,7 @@ export default function Room() {
             /* Modern Whiteboard */
             <div style={{ 
               position: 'relative',
-              background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
+              background: '#f8fafc',
               borderRadius: '20px',
               padding: '24px',
               boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
@@ -1636,7 +1636,7 @@ export default function Room() {
                   top: '36px',
                   right: '36px',
                   padding: '10px 20px',
-                  background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                  background: '#ef4444',
                   color: 'white',
                   border: 'none',
                   borderRadius: '12px',
@@ -1822,8 +1822,8 @@ export default function Room() {
                 height: isMobile ? '56px' : '52px',
                 borderRadius: '50%',
                 background: streamRef.current?.getAudioTracks()[0]?.enabled !== false 
-                  ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.05) 100%)'
-                  : 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                  ? 'rgba(255, 255, 255, 0.1)'
+                  : '#ef4444',
                 border: streamRef.current?.getAudioTracks()[0]?.enabled !== false 
                   ? '2px solid rgba(255, 255, 255, 0.2)'
                   : '2px solid #ef4444',
@@ -1880,8 +1880,8 @@ export default function Room() {
                 height: isMobile ? '56px' : '52px',
                 borderRadius: '50%',
                 background: streamRef.current?.getVideoTracks()[0]?.enabled !== false 
-                  ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.05) 100%)'
-                  : 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                  ? 'rgba(255, 255, 255, 0.1)'
+                  : '#ef4444',
                 border: streamRef.current?.getVideoTracks()[0]?.enabled !== false 
                   ? '2px solid rgba(255, 255, 255, 0.2)'
                   : '2px solid #ef4444',
@@ -1929,7 +1929,7 @@ export default function Room() {
               width: isMobile ? '64px' : '60px',
               height: isMobile ? '64px' : '60px',
               borderRadius: '50%',
-              background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+              background: '#ef4444',
               border: 'none',
               color: 'white',
               cursor: 'pointer',
@@ -1973,8 +1973,8 @@ export default function Room() {
                   height: '52px',
                   borderRadius: '50%',
                   background: isScreenSharing 
-                    ? 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)'
-                    : 'linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.05) 100%)',
+                    ? '#3b82f6'
+                    : 'rgba(255, 255, 255, 0.1)',
                   border: isScreenSharing 
                     ? '2px solid #3b82f6'
                     : '2px solid rgba(255, 255, 255, 0.2)',
@@ -2019,8 +2019,8 @@ export default function Room() {
                 height: isMobile ? '56px' : '52px',
                 borderRadius: '50%',
                 background: showChat 
-                  ? 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)'
-                  : 'linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.05) 100%)',
+                  ? '#3b82f6'
+                  : 'rgba(255, 255, 255, 0.1)',
                 border: showChat 
                   ? '2px solid #3b82f6'
                   : '2px solid rgba(255, 255, 255, 0.2)',
