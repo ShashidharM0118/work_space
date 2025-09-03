@@ -69,14 +69,15 @@ export default function LandingPage() {
             top: 0,
             left: 0,
             right: 0,
-            zIndex: 50,
-            padding: '20px 40px',
-            background: 'rgba(15, 23, 42, 0.95)',
+            zIndex: 1000,
+            padding: '16px 40px',
+            background: 'rgba(15, 23, 42, 0.98)',
             backdropFilter: 'blur(20px)',
-            borderBottom: '1px solid rgba(148, 163, 184, 0.1)',
+            borderBottom: '1px solid rgba(148, 163, 184, 0.2)',
             display: 'flex',
             justifyContent: 'space-between',
-            alignItems: 'center'
+            alignItems: 'center',
+            height: '80px'
           }}
         >
           {/* Logo */}
@@ -109,27 +110,27 @@ export default function LandingPage() {
             alignItems: 'center'
           }}>
             <Link href="#features" style={{
-              color: '#94a3b8',
+              color: '#cbd5e1',
               textDecoration: 'none',
               fontSize: '16px',
               fontWeight: '500',
               transition: 'color 0.3s ease'
             }}
-              onMouseOver={(e) => e.currentTarget.style.color = '#f1f5f9'}
-              onMouseOut={(e) => e.currentTarget.style.color = '#94a3b8'}
+              onMouseOver={(e) => e.currentTarget.style.color = '#ffffff'}
+              onMouseOut={(e) => e.currentTarget.style.color = '#cbd5e1'}
             >
               Features
             </Link>
 
             <Link href="#about" style={{
-              color: '#94a3b8',
+              color: '#cbd5e1',
               textDecoration: 'none',
               fontSize: '16px',
               fontWeight: '500',
               transition: 'color 0.3s ease'
             }}
-              onMouseOver={(e) => e.currentTarget.style.color = '#f1f5f9'}
-              onMouseOut={(e) => e.currentTarget.style.color = '#94a3b8'}
+              onMouseOver={(e) => e.currentTarget.style.color = '#ffffff'}
+              onMouseOut={(e) => e.currentTarget.style.color = '#cbd5e1'}
             >
               About
             </Link>
@@ -201,7 +202,8 @@ export default function LandingPage() {
           justifyContent: 'center',
           position: 'relative',
           background: '#0f172a',
-          overflow: 'hidden'
+          overflow: 'hidden',
+          paddingTop: '80px'
         }}>
           {/* Three.js Virtual Office Background */}
           <VirtualOfficeBackground />
@@ -241,7 +243,7 @@ export default function LandingPage() {
             }} />
           </motion.div>
 
-          <div style={{
+          <div className="hero-content" style={{
             maxWidth: '1200px',
             margin: '0 auto',
             padding: '0 40px',
@@ -290,13 +292,14 @@ export default function LandingPage() {
             </motion.h1>
 
             <motion.p
+              className="hero-subtitle"
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.6 }}
               style={{
                 fontSize: '24px',
                 lineHeight: '1.5',
-                color: '#94a3b8',
+                color: '#cbd5e1',
                 maxWidth: '600px',
                 margin: '0 auto 48px auto'
               }}
@@ -306,6 +309,7 @@ export default function LandingPage() {
             </motion.p>
 
             <motion.div
+              className="hero-buttons"
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.8 }}
@@ -378,6 +382,7 @@ export default function LandingPage() {
 
             {/* Key Benefits */}
             <motion.div
+              className="benefits-grid"
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 1.0 }}
@@ -402,7 +407,7 @@ export default function LandingPage() {
                   </div>
                   <div style={{
                     fontSize: '16px',
-                    color: '#64748b',
+                    color: '#94a3b8',
                     fontWeight: '500'
                   }}>
                     {benefit.label}
@@ -440,7 +445,7 @@ export default function LandingPage() {
               </h2>
               <p style={{
                 fontSize: '20px',
-                color: '#94a3b8',
+                color: '#cbd5e1',
                 maxWidth: '600px',
                 margin: '0 auto'
               }}>
@@ -448,7 +453,7 @@ export default function LandingPage() {
               </p>
             </motion.div>
 
-            <div style={{
+            <div className="features-grid" style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
               gap: '40px'
@@ -524,7 +529,7 @@ export default function LandingPage() {
                   </h3>
                   <p style={{
                     fontSize: '16px',
-                    color: '#94a3b8',
+                    color: '#cbd5e1',
                     lineHeight: '1.6',
                     margin: 0
                   }}>
@@ -567,7 +572,7 @@ export default function LandingPage() {
               </h2>
               <p style={{
                 fontSize: '18px',
-                color: '#94a3b8',
+                color: '#cbd5e1',
                 lineHeight: '1.7',
                 marginBottom: '32px'
               }}>
@@ -577,7 +582,7 @@ export default function LandingPage() {
               </p>
               <p style={{
                 fontSize: '18px',
-                color: '#94a3b8',
+                color: '#cbd5e1',
                 lineHeight: '1.7',
                 marginBottom: '40px'
               }}>
@@ -646,7 +651,7 @@ export default function LandingPage() {
                   </div>
                   <div style={{
                     fontSize: '14px',
-                    color: '#64748b',
+                    color: '#94a3b8',
                     fontWeight: '500'
                   }}>
                     {item.label}
@@ -687,7 +692,7 @@ export default function LandingPage() {
 
             <p style={{
               fontSize: '16px',
-              color: '#64748b',
+              color: '#94a3b8',
               marginBottom: '32px'
             }}>
               Next Generation Virtual Office Platform
@@ -701,13 +706,13 @@ export default function LandingPage() {
             }}>
               {['Privacy Policy', 'Terms of Service', 'Contact', 'Support'].map((link, index) => (
                 <a key={index} href="#" style={{
-                  color: '#94a3b8',
+                  color: '#cbd5e1',
                   textDecoration: 'none',
                   fontSize: '14px',
                   transition: 'color 0.3s ease'
                 }}
-                  onMouseOver={(e) => e.currentTarget.style.color = '#f1f5f9'}
-                  onMouseOut={(e) => e.currentTarget.style.color = '#94a3b8'}
+                  onMouseOver={(e) => e.currentTarget.style.color = '#ffffff'}
+                  onMouseOut={(e) => e.currentTarget.style.color = '#cbd5e1'}
                 >
                   {link}
                 </a>
@@ -716,7 +721,7 @@ export default function LandingPage() {
 
             <p style={{
               fontSize: '14px',
-              color: '#475569',
+              color: '#94a3b8',
               margin: 0
             }}>
               © 2024 NexOffice. All rights reserved.
@@ -731,7 +736,8 @@ export default function LandingPage() {
       <style jsx>{`
         @media (max-width: 768px) {
           nav {
-            padding: 16px 20px !important;
+            padding: 12px 20px !important;
+            height: 70px !important;
           }
           
           nav > div:first-child span {
@@ -751,8 +757,17 @@ export default function LandingPage() {
             font-size: 14px !important;
           }
           
+          section:first-of-type {
+            padding-top: 70px !important;
+          }
+          
           h1 {
             font-size: 48px !important;
+            line-height: 1.1 !important;
+          }
+          
+          .hero-content {
+            padding: 0 20px !important;
           }
           
           .hero-buttons {
@@ -760,13 +775,23 @@ export default function LandingPage() {
             gap: 16px !important;
           }
           
-          .hero-buttons a {
+          .hero-buttons > div {
             width: 100% !important;
-            justify-content: center !important;
           }
           
-          .stats {
+          .hero-buttons a, .hero-buttons button {
+            width: 100% !important;
+            justify-content: center !important;
+            text-align: center !important;
+          }
+          
+          .benefits-grid {
             flex-direction: column !important;
+            gap: 30px !important;
+          }
+          
+          .features-grid {
+            grid-template-columns: 1fr !important;
             gap: 30px !important;
           }
           
@@ -777,6 +802,29 @@ export default function LandingPage() {
           
           .metrics-grid {
             grid-template-columns: 1fr 1fr !important;
+          }
+          
+          .footer-links {
+            flex-wrap: wrap !important;
+            gap: 20px !important;
+          }
+        }
+        
+        @media (max-width: 480px) {
+          h1 {
+            font-size: 36px !important;
+          }
+          
+          .hero-subtitle {
+            font-size: 18px !important;
+          }
+          
+          .features-grid > div {
+            padding: 30px 20px !important;
+          }
+          
+          .metrics-grid {
+            grid-template-columns: 1fr !important;
           }
         }
       `}</style>
