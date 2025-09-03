@@ -548,7 +548,7 @@ export default function LandingPage() {
           padding: '120px 40px',
           backgroundColor: '#1e293b'
         }}>
-          <div style={{
+          <div className="about-grid" style={{
             maxWidth: '1200px',
             margin: '0 auto',
             display: 'grid',
@@ -611,6 +611,7 @@ export default function LandingPage() {
               whileInView={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.8 }}
               viewport={{ once: true }}
+              className="metrics-grid"
               style={{
                 display: 'grid',
                 gridTemplateColumns: '1fr 1fr',
@@ -698,7 +699,7 @@ export default function LandingPage() {
               Next Generation Virtual Office Platform
             </p>
 
-            <div style={{
+            <div className="footer-links" style={{
               display: 'flex',
               justifyContent: 'center',
               gap: '40px',
